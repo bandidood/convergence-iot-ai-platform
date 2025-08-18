@@ -1,0 +1,1046 @@
+{
+  "metadata": {
+    "station_name": "Station Épuration Traffeyère",
+    "sensors_count": 127,
+    "generation_time": "2025-08-18T01:13:57.762806",
+    "weather_data": {
+      "temperature": 6.3,
+      "humidity": 85,
+      "precipitation": 6.3,
+      "wind_speed": 4.4,
+      "pressure": 1009.8,
+      "solar_irradiance": 0
+    },
+    "process_parameters": {
+      "hydraulic_retention_time": 8.5,
+      "sludge_age": 12.0,
+      "recirculation_ratio": 1.2,
+      "food_to_microorganism_ratio": 0.25,
+      "mixed_liquor_concentration": 3500.0,
+      "oxygen_transfer_efficiency": 0.82,
+      "settling_velocity": 1.8,
+      "removal_efficiency_cod": 0.92,
+      "removal_efficiency_nitrogen": 0.78,
+      "removal_efficiency_phosphorus": 0.85
+    }
+  },
+  "current_readings": [],
+  "sensors_config": [
+    {
+      "id": "PRE_000",
+      "type": "ph",
+      "stage": "pretraitement",
+      "location": "Dégrillage_1",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_001",
+      "type": "temperature",
+      "stage": "pretraitement",
+      "location": "Dégrillage_2",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_002",
+      "type": "debit",
+      "stage": "pretraitement",
+      "location": "Dégrillage_3",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_003",
+      "type": "debit",
+      "stage": "pretraitement",
+      "location": "Dégrillage_1",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_004",
+      "type": "conductivite",
+      "stage": "pretraitement",
+      "location": "Dégrillage_2",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_005",
+      "type": "conductivite",
+      "stage": "pretraitement",
+      "location": "Dégrillage_3",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_006",
+      "type": "debit",
+      "stage": "pretraitement",
+      "location": "Dégrillage_1",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_007",
+      "type": "debit",
+      "stage": "pretraitement",
+      "location": "Dégrillage_2",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_008",
+      "type": "temperature",
+      "stage": "pretraitement",
+      "location": "Dégrillage_3",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_009",
+      "type": "conductivite",
+      "stage": "pretraitement",
+      "location": "Dégrillage_1",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_010",
+      "type": "conductivite",
+      "stage": "pretraitement",
+      "location": "Dégrillage_2",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_011",
+      "type": "debit",
+      "stage": "pretraitement",
+      "location": "Dégrillage_3",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_012",
+      "type": "debit",
+      "stage": "pretraitement",
+      "location": "Dégrillage_1",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_013",
+      "type": "conductivite",
+      "stage": "pretraitement",
+      "location": "Dégrillage_2",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "PRE_014",
+      "type": "temperature",
+      "stage": "pretraitement",
+      "location": "Dégrillage_3",
+      "base_value": 2400.0,
+      "variance": 0.1
+    },
+    {
+      "id": "DEC1_000",
+      "type": "ph",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_1",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_001",
+      "type": "debit",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_2",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_002",
+      "type": "turbidite",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_3",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_003",
+      "type": "mes",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_4",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_004",
+      "type": "debit",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_5",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_005",
+      "type": "debit",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_6",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_006",
+      "type": "turbidite",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_1",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_007",
+      "type": "mes",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_2",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_008",
+      "type": "turbidite",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_3",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_009",
+      "type": "mes",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_4",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_010",
+      "type": "turbidite",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_5",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_011",
+      "type": "mes",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_6",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_012",
+      "type": "dco",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_1",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_013",
+      "type": "turbidite",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_2",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_014",
+      "type": "mes",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_3",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_015",
+      "type": "debit",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_4",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_016",
+      "type": "debit",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_5",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "DEC1_017",
+      "type": "mes",
+      "stage": "decantation_primaire",
+      "location": "Bassin_Primaire_6",
+      "base_value": 15.0,
+      "variance": 0.15
+    },
+    {
+      "id": "BIO_000",
+      "type": "ammoniac",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_1",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_001",
+      "type": "azote_total",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_2",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_002",
+      "type": "phosphore",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_3",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_003",
+      "type": "dco",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_4",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_004",
+      "type": "nitrites",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_5",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_005",
+      "type": "dbo5",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_6",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_006",
+      "type": "nitrites",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_7",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_007",
+      "type": "nitrates",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_1",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_008",
+      "type": "o2_dissous",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_2",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_009",
+      "type": "temperature",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_3",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_010",
+      "type": "nitrates",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_4",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_011",
+      "type": "o2_dissous",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_5",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_012",
+      "type": "dbo5",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_6",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_013",
+      "type": "phosphore",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_7",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_014",
+      "type": "dbo5",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_1",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_015",
+      "type": "nitrates",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_2",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_016",
+      "type": "phosphore",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_3",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_017",
+      "type": "phosphore",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_4",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_018",
+      "type": "nitrites",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_5",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_019",
+      "type": "nitrates",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_6",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_020",
+      "type": "dco",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_7",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_021",
+      "type": "ammoniac",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_1",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_022",
+      "type": "temperature",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_2",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_023",
+      "type": "phosphore",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_3",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_024",
+      "type": "nitrates",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_4",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_025",
+      "type": "o2_dissous",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_5",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_026",
+      "type": "azote_total",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_6",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_027",
+      "type": "nitrates",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_7",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_028",
+      "type": "dco",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_1",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_029",
+      "type": "nitrites",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_2",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_030",
+      "type": "azote_total",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_3",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_031",
+      "type": "nitrates",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_4",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_032",
+      "type": "temperature",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_5",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_033",
+      "type": "azote_total",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_6",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "BIO_034",
+      "type": "o2_dissous",
+      "stage": "traitement_biologique",
+      "location": "Bassin_Biologique_7",
+      "base_value": 4.5,
+      "variance": 0.08
+    },
+    {
+      "id": "DEC2_000",
+      "type": "turbidite",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_1",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_001",
+      "type": "turbidite",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_2",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_002",
+      "type": "turbidite",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_3",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_003",
+      "type": "dco",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_4",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_004",
+      "type": "dco",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_1",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_005",
+      "type": "turbidite",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_2",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_006",
+      "type": "turbidite",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_3",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_007",
+      "type": "mes",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_4",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_008",
+      "type": "turbidite",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_1",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_009",
+      "type": "dbo5",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_2",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_010",
+      "type": "azote_total",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_3",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_011",
+      "type": "mes",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_4",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_012",
+      "type": "dco",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_1",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_013",
+      "type": "dbo5",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_2",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_014",
+      "type": "dbo5",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_3",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "DEC2_015",
+      "type": "azote_total",
+      "stage": "decantation_secondaire",
+      "location": "Clarificateur_4",
+      "base_value": 180.0,
+      "variance": 0.12
+    },
+    {
+      "id": "TER_000",
+      "type": "azote_total",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_1",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_001",
+      "type": "phosphore",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_2",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_002",
+      "type": "metaux_lourds",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_3",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_003",
+      "type": "phosphore",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_1",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_004",
+      "type": "ph",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_2",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_005",
+      "type": "metaux_lourds",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_3",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_006",
+      "type": "ph",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_1",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_007",
+      "type": "azote_total",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_2",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_008",
+      "type": "phosphore",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_3",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_009",
+      "type": "phosphore",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_1",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_010",
+      "type": "conductivite",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_2",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "TER_011",
+      "type": "ph",
+      "stage": "traitement_tertiaire",
+      "location": "Filtration_3",
+      "base_value": 3.5,
+      "variance": 0.05
+    },
+    {
+      "id": "DIS_000",
+      "type": "turbidite",
+      "stage": "desinfection",
+      "location": "UV_Ozone_1",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "DIS_001",
+      "type": "ph",
+      "stage": "desinfection",
+      "location": "UV_Ozone_2",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "DIS_002",
+      "type": "chlore_residuel",
+      "stage": "desinfection",
+      "location": "UV_Ozone_1",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "DIS_003",
+      "type": "turbidite",
+      "stage": "desinfection",
+      "location": "UV_Ozone_2",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "DIS_004",
+      "type": "chlore_residuel",
+      "stage": "desinfection",
+      "location": "UV_Ozone_1",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "DIS_005",
+      "type": "temperature",
+      "stage": "desinfection",
+      "location": "UV_Ozone_2",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "DIS_006",
+      "type": "temperature",
+      "stage": "desinfection",
+      "location": "UV_Ozone_1",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "DIS_007",
+      "type": "chlore_residuel",
+      "stage": "desinfection",
+      "location": "UV_Ozone_2",
+      "base_value": 0.5,
+      "variance": 0.1
+    },
+    {
+      "id": "BOU_000",
+      "type": "mes",
+      "stage": "traitement_boues",
+      "location": "Digesteur_1",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_001",
+      "type": "temperature",
+      "stage": "traitement_boues",
+      "location": "Digesteur_2",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_002",
+      "type": "mes",
+      "stage": "traitement_boues",
+      "location": "Digesteur_1",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_003",
+      "type": "ph",
+      "stage": "traitement_boues",
+      "location": "Digesteur_2",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_004",
+      "type": "ph",
+      "stage": "traitement_boues",
+      "location": "Digesteur_1",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_005",
+      "type": "mes",
+      "stage": "traitement_boues",
+      "location": "Digesteur_2",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_006",
+      "type": "pression",
+      "stage": "traitement_boues",
+      "location": "Digesteur_1",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_007",
+      "type": "temperature",
+      "stage": "traitement_boues",
+      "location": "Digesteur_2",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_008",
+      "type": "mes",
+      "stage": "traitement_boues",
+      "location": "Digesteur_1",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "BOU_009",
+      "type": "temperature",
+      "stage": "traitement_boues",
+      "location": "Digesteur_2",
+      "base_value": 1.013,
+      "variance": 0.2
+    },
+    {
+      "id": "OUT_000",
+      "type": "phosphore",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_001",
+      "type": "metaux_lourds",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_002",
+      "type": "dco",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_003",
+      "type": "ph",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_004",
+      "type": "metaux_lourds",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_005",
+      "type": "dco",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_006",
+      "type": "ph",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_007",
+      "type": "ph",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_008",
+      "type": "azote_total",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_009",
+      "type": "metaux_lourds",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_010",
+      "type": "azote_total",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_011",
+      "type": "dbo5",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    },
+    {
+      "id": "OUT_012",
+      "type": "turbidite",
+      "stage": "sortie",
+      "location": "Rejet_Final",
+      "base_value": 420.0,
+      "variance": 0.05
+    }
+  ]
+}

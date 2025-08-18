@@ -1,0 +1,23 @@
+# Configuration Alertmanager ultra-simple - RNCP 39394
+# Compatible Alertmanager v0.26.0
+
+global:
+  smtp_smarthost: 'smtp.company.com:587'
+  smtp_from: 'alertes-rncp39394@company.com'
+  smtp_auth_username: 'alert-service@company.com'
+  smtp_auth_password_file: '/run/secrets/alertmanager_smtp_password'
+  smtp_require_tls: true
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+
+receivers:
+- name: 'web.hook'
+  email_configs:
+  - to: 'admin@company.com'
+    subject: '[RNCP 39394] Alerte - {{ .GroupLabels.alertname }}'
+    body: 'Alerte détectée sur la plateforme RNCP 39394. Détails: {{ range .Alerts }}{{ .Labels.alertname }}: {{ .Annotations.summary }}.{{ end }}'

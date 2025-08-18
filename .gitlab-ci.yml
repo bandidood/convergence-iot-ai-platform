@@ -1,0 +1,526 @@
+# =============================================================================
+# PIPELINE CI/CD SÉCURISÉ MLOPS - RNCP 39394
+# Expert en Systèmes d'Information et Sécurité
+# 
+# Pipeline DevSecOps avec 15 contrôles sécurité
+# Conformité ISA/IEC 62443 SL2+ + déploiement Blue/Green
+# =============================================================================
+
+stages:
+  - security-scan      # SAST, secret scanning, dependency check
+  - build             # Container build avec optimisations
+  - test-unit         # Tests unitaires ML + code coverage
+  - test-security     # DAST, image scanning, adversarial testing
+  - test-integration  # Tests end-to-end + performance
+  - deploy-staging    # Déploiement environnement de test
+  - security-audit    # Tests pénétration automatisés
+  - deploy-production # Déploiement Blue/Green production
+  - monitoring        # Activation monitoring et alertes
+
+# Variables globales sécurisées
+variables:
+  # Configuration Docker sécurisée
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  BUILDKIT_PROGRESS: plain
+  
+  # Versions et tags
+  IMAGE_TAG: ${CI_COMMIT_SHORT_SHA}
+  REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE}/edge-ai-engine
+  
+  # Configuration sécurité
+  SECURITY_SCAN_LEVEL: "high"
+  VULNERABILITY_THRESHOLD: "medium"
+  CODE_COVERAGE_THRESHOLD: "85"
+  
+  # Configuration déploiement
+  KUBERNETES_NAMESPACE: "rncp-39394"
+  DEPLOYMENT_STRATEGY: "blue-green"
+  HEALTH_CHECK_TIMEOUT: "300s"
+
+# =============================================================================
+# STAGE 1: SECURITY SCANNING (15 contrôles sécurité)
+# =============================================================================
+
+sast-sonarqube:
+  stage: security-scan
+  image: sonarsource/sonar-scanner-cli:latest
+  script:
+    - echo "🔍 Analyse statique SonarQube..."
+    - sonar-scanner
+      -Dsonar.projectKey=rncp-39394-iot-ai
+      -Dsonar.sources=core/
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.login=$SONAR_TOKEN
+      -Dsonar.qualitygate.wait=true
+      -Dsonar.coverage.exclusions="**/test/**,**/mock/**"
+  coverage: '/Coverage: \d+\.\d+%/'
+  artifacts:
+    reports:
+      sonarqube: sonar-report.json
+  allow_failure: false
+  only:
+    - merge_requests
+    - main
+    - develop
+
+secret-scanning:
+  stage: security-scan
+  image: trufflesecurity/trufflehog:latest
+  script:
+    - echo "🔐 Scan secrets et credentials..."
+    - trufflehog filesystem . 
+      --exclude-paths=".git,.gitlab-ci.yml"
+      --format=json 
+      --output=secrets-report.json
+    - |
+      if [ -s secrets-report.json ]; then
+        echo "❌ Secrets détectés dans le code!"
+        cat secrets-report.json
+        exit 1
+      else
+        echo "✅ Aucun secret détecté"
+      fi
+  artifacts:
+    reports:
+      security: secrets-report.json
+  allow_failure: false
+
+dependency-scanning:
+  stage: security-scan
+  image: python:3.11-slim
+  before_script:
+    - pip install safety bandit semgrep
+  script:
+    - echo "🔍 Scan vulnérabilités dépendances..."
+    
+    # Safety - vulnérabilités Python packages
+    - safety check --json --output safety-report.json || true
+    
+    # Bandit - vulnérabilités code Python
+    - bandit -r core/ -f json -o bandit-report.json || true
+    
+    # Semgrep - règles sécurité personnalisées
+    - semgrep --config=auto core/ --json --output=semgrep-report.json || true
+    
+    # Analyse des résultats
+    - python scripts/analyze_security_reports.py
+  artifacts:
+    reports:
+      security: 
+        - safety-report.json
+        - bandit-report.json
+        - semgrep-report.json
+  allow_failure: false
+
+license-compliance:
+  stage: security-scan
+  image: python:3.11-slim
+  script:
+    - echo "📄 Vérification conformité licences..."
+    - pip install pip-licenses
+    - pip-licenses --format=json --output-file=licenses-report.json
+    - python scripts/check_license_compliance.py
+  artifacts:
+    reports:
+      license_scanning: licenses-report.json
+  allow_failure: false
+
+# =============================================================================
+# STAGE 2: BUILD SÉCURISÉ
+# =============================================================================
+
+build-ai-engine:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker info
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - echo "🔨 Build container Edge AI Engine..."
+    
+    # Build avec optimisations sécurité
+    - docker build 
+      --pull
+      --cache-from $REGISTRY_IMAGE:latest
+      --build-arg BUILDKIT_INLINE_CACHE=1
+      --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      --build-arg VCS_REF=${CI_COMMIT_SHA}
+      --build-arg VERSION=${CI_COMMIT_TAG:-latest}
+      --tag $REGISTRY_IMAGE:$IMAGE_TAG
+      --tag $REGISTRY_IMAGE:latest
+      core/edge-ai-engine/
+    
+    # Signature et push sécurisés
+    - docker push $REGISTRY_IMAGE:$IMAGE_TAG
+    - docker push $REGISTRY_IMAGE:latest
+    
+    # Export image pour tests
+    - docker save $REGISTRY_IMAGE:$IMAGE_TAG > ai-engine-image.tar
+  artifacts:
+    paths:
+      - ai-engine-image.tar
+    expire_in: 1 hour
+  only:
+    - main
+    - develop
+    - merge_requests
+
+# =============================================================================
+# STAGE 3: TESTS UNITAIRES + COVERAGE
+# =============================================================================
+
+unit-tests-ml:
+  stage: test-unit
+  image: python:3.11
+  before_script:
+    - pip install -r core/edge-ai-engine/requirements.txt
+    - pip install pytest pytest-cov pytest-mock
+  script:
+    - echo "🧪 Tests unitaires modèles ML..."
+    - pytest core/edge-ai-engine/tests/ 
+      --cov=core/edge-ai-engine/ 
+      --cov-report=xml:coverage.xml
+      --cov-report=term-missing
+      --cov-fail-under=$CODE_COVERAGE_THRESHOLD
+      --junitxml=junit-report.xml
+      -v
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+      junit: junit-report.xml
+  allow_failure: false
+
+performance-benchmarks:
+  stage: test-unit
+  image: python:3.11
+  script:
+    - echo "⚡ Benchmarks performance IA..."
+    - pip install -r core/edge-ai-engine/requirements.txt
+    - python core/edge-ai-engine/demo_ai_engine.py > benchmark-results.txt
+    
+    # Validation seuils performance
+    - python scripts/validate_performance_thresholds.py
+  artifacts:
+    paths:
+      - benchmark-results.txt
+    reports:
+      performance: performance-metrics.json
+  allow_failure: false
+
+# =============================================================================
+# STAGE 4: TESTS SÉCURITÉ (DAST + SCAN IMAGES)
+# =============================================================================
+
+container-scanning:
+  stage: test-security
+  image: aquasec/trivy:latest
+  dependencies:
+    - build-ai-engine
+  script:
+    - echo "🔍 Scan sécurité container..."
+    
+    # Import image depuis artifacts
+    - docker load < ai-engine-image.tar
+    
+    # Scan Trivy complet
+    - trivy image 
+      --format json 
+      --output container-scan.json
+      --severity HIGH,CRITICAL
+      --exit-code 1
+      $REGISTRY_IMAGE:$IMAGE_TAG
+  artifacts:
+    reports:
+      container_scanning: container-scan.json
+  allow_failure: false
+
+dast-security-testing:
+  stage: test-security
+  image: owasp/zap2docker-stable:latest
+  variables:
+    DAST_WEBSITE: "http://localhost:8080"
+  script:
+    - echo "🔍 Tests dynamiques sécurité (DAST)..."
+    
+    # Démarrage service test
+    - docker run -d --name ai-engine-test 
+      -p 8080:8080 
+      $REGISTRY_IMAGE:$IMAGE_TAG demo
+    
+    # Attente service ready
+    - sleep 30
+    
+    # Scan OWASP ZAP
+    - zap-baseline.py 
+      -t $DAST_WEBSITE
+      -J dast-report.json
+      -w dast-report.md
+  artifacts:
+    reports:
+      dast: dast-report.json
+    paths:
+      - dast-report.md
+  allow_failure: true
+
+adversarial-security-tests:
+  stage: test-security
+  image: python:3.11
+  script:
+    - echo "🛡️ Tests sécurité adversariale..."
+    - pip install -r core/edge-ai-engine/requirements.txt
+    - python core/edge-ai-engine/adversarial_security_test.py
+    
+    # Validation seuils robustesse
+    - python scripts/validate_security_thresholds.py
+  artifacts:
+    paths:
+      - core/edge-ai-engine/models/security_summary.txt
+    reports:
+      security: security-test-results.json
+  allow_failure: false
+
+# =============================================================================
+# STAGE 5: TESTS INTÉGRATION
+# =============================================================================
+
+integration-tests:
+  stage: test-integration
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  script:
+    - echo "🔗 Tests intégration end-to-end..."
+    
+    # Démarrage stack complète
+    - docker-compose -f docker-compose.test.yml up -d
+    
+    # Attente services ready
+    - sleep 60
+    
+    # Tests end-to-end
+    - python tests/integration/test_full_pipeline.py
+    
+    # Nettoyage
+    - docker-compose -f docker-compose.test.yml down
+  artifacts:
+    reports:
+      junit: integration-test-results.xml
+  allow_failure: false
+
+load-testing:
+  stage: test-integration
+  image: loadimpact/k6:latest
+  script:
+    - echo "📈 Tests charge et performance..."
+    - k6 run --out json=load-test-results.json tests/performance/load-test.js
+  artifacts:
+    paths:
+      - load-test-results.json
+  allow_failure: true
+
+# =============================================================================
+# STAGE 6: DÉPLOIEMENT STAGING
+# =============================================================================
+
+deploy-staging:
+  stage: deploy-staging
+  image: bitnami/kubectl:latest
+  environment:
+    name: staging
+    url: https://staging.rncp-39394.example.com
+  script:
+    - echo "🚀 Déploiement environnement staging..."
+    
+    # Configuration kubectl
+    - kubectl config set-cluster k8s --server="$KUBE_SERVER" --certificate-authority="$KUBE_CA_PEM_FILE"
+    - kubectl config set-credentials gitlab --token="$KUBE_TOKEN"
+    - kubectl config set-context default --cluster=k8s --user=gitlab
+    - kubectl config use-context default
+    
+    # Mise à jour manifests
+    - sed -i "s|IMAGE_TAG|$IMAGE_TAG|g" k8s/staging/*.yaml
+    
+    # Déploiement
+    - kubectl apply -f k8s/staging/ -n $KUBERNETES_NAMESPACE-staging
+    
+    # Attente rollout
+    - kubectl rollout status deployment/ai-engine-staging -n $KUBERNETES_NAMESPACE-staging --timeout=300s
+    
+    # Health check
+    - kubectl exec deploy/ai-engine-staging -n $KUBERNETES_NAMESPACE-staging -- python -c "print('Health check OK')"
+  only:
+    - main
+    - develop
+
+# =============================================================================
+# STAGE 7: AUDIT SÉCURITÉ AUTOMATISÉ
+# =============================================================================
+
+penetration-testing:
+  stage: security-audit
+  image: kalilinux/kali-rolling:latest
+  environment:
+    name: staging
+  script:
+    - echo "🎯 Tests pénétration automatisés..."
+    
+    # Installation outils
+    - apt-get update && apt-get install -y nmap nikto dirb sqlmap
+    
+    # Scan réseau
+    - nmap -sV -sC -oX nmap-results.xml $STAGING_URL
+    
+    # Scan web
+    - nikto -h $STAGING_URL -Format xml -output nikto-results.xml
+    
+    # Tests spécialisés ML/AI
+    - python tests/security/ml_security_tests.py $STAGING_URL
+  artifacts:
+    paths:
+      - "*-results.xml"
+  allow_failure: true
+  only:
+    - main
+
+compliance-check:
+  stage: security-audit
+  image: python:3.11
+  script:
+    - echo "📋 Vérification conformité ISA/IEC 62443..."
+    - python scripts/compliance_checker.py --standard ISA-IEC-62443
+    - python scripts/generate_compliance_report.py
+  artifacts:
+    paths:
+      - compliance-report.pdf
+  only:
+    - main
+
+# =============================================================================
+# STAGE 8: DÉPLOIEMENT PRODUCTION BLUE/GREEN
+# =============================================================================
+
+deploy-production:
+  stage: deploy-production
+  image: bitnami/kubectl:latest
+  environment:
+    name: production
+    url: https://rncp-39394.example.com
+  script:
+    - echo "🎯 Déploiement production Blue/Green..."
+    
+    # Détermination couleur active
+    - ACTIVE_COLOR=$(kubectl get service ai-engine-service -n $KUBERNETES_NAMESPACE -o jsonpath='{.spec.selector.color}' || echo "blue")
+    - INACTIVE_COLOR=$([ "$ACTIVE_COLOR" = "blue" ] && echo "green" || echo "blue")
+    
+    - echo "Couleur active: $ACTIVE_COLOR, Déploiement sur: $INACTIVE_COLOR"
+    
+    # Mise à jour manifests pour couleur inactive
+    - sed -i "s|IMAGE_TAG|$IMAGE_TAG|g" k8s/production/*.yaml
+    - sed -i "s|COLOR|$INACTIVE_COLOR|g" k8s/production/*.yaml
+    
+    # Déploiement couleur inactive
+    - kubectl apply -f k8s/production/deployment-$INACTIVE_COLOR.yaml -n $KUBERNETES_NAMESPACE
+    
+    # Attente rollout
+    - kubectl rollout status deployment/ai-engine-$INACTIVE_COLOR -n $KUBERNETES_NAMESPACE --timeout=300s
+    
+    # Tests santé sur couleur inactive
+    - python scripts/health_check.py --deployment $INACTIVE_COLOR --namespace $KUBERNETES_NAMESPACE
+    
+    # Switch trafic (Blue/Green switch)
+    - kubectl patch service ai-engine-service -n $KUBERNETES_NAMESPACE -p '{"spec":{"selector":{"color":"'$INACTIVE_COLOR'"}}}'
+    
+    # Attente validation trafic
+    - sleep 30
+    
+    # Tests post-déploiement
+    - python scripts/post_deployment_tests.py
+    
+    # Nettoyage ancienne version (optionnel avec délai)
+    - echo "Ancienne version $ACTIVE_COLOR conservée pour rollback rapide"
+  when: manual
+  only:
+    - main
+
+# =============================================================================
+# STAGE 9: MONITORING ET ALERTES
+# =============================================================================
+
+setup-monitoring:
+  stage: monitoring
+  image: bitnami/kubectl:latest
+  script:
+    - echo "📊 Configuration monitoring et alertes..."
+    
+    # Déploiement Prometheus rules
+    - kubectl apply -f monitoring/prometheus/rules.yaml -n monitoring
+    
+    # Configuration Grafana dashboards
+    - kubectl create configmap grafana-dashboards --from-file=monitoring/grafana/dashboards/ -n monitoring
+    
+    # Alertes Slack/Email
+    - kubectl apply -f monitoring/alertmanager/config.yaml -n monitoring
+    
+    # Tests alertes
+    - python scripts/test_monitoring_alerts.py
+  only:
+    - main
+
+# =============================================================================
+# ROLLBACK D'URGENCE
+# =============================================================================
+
+rollback-production:
+  stage: deploy-production
+  image: bitnami/kubectl:latest
+  environment:
+    name: production
+  script:
+    - echo "🔄 Rollback d'urgence production..."
+    
+    # Récupération dernière couleur stable
+    - CURRENT_COLOR=$(kubectl get service ai-engine-service -n $KUBERNETES_NAMESPACE -o jsonpath='{.spec.selector.color}')
+    - PREVIOUS_COLOR=$([ "$CURRENT_COLOR" = "blue" ] && echo "green" || echo "blue")
+    
+    # Switch immédiat
+    - kubectl patch service ai-engine-service -n $KUBERNETES_NAMESPACE -p '{"spec":{"selector":{"color":"'$PREVIOUS_COLOR'"}}}'
+    
+    # Validation rollback
+    - python scripts/validate_rollback.py
+    
+    - echo "✅ Rollback terminé vers $PREVIOUS_COLOR"
+  when: manual
+  only:
+    - main
+
+# =============================================================================
+# NOTIFICATIONS ET REPORTING
+# =============================================================================
+
+notify-teams:
+  stage: .post
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - |
+      if [ "$CI_JOB_STATUS" = "success" ]; then
+        STATUS_EMOJI="✅"
+        STATUS_TEXT="SUCCÈS"
+        COLOR="#00ff00"
+      else
+        STATUS_EMOJI="❌"  
+        STATUS_TEXT="ÉCHEC"
+        COLOR="#ff0000"
+      fi
+      
+      curl -X POST -H 'Content-type: application/json' \
+        --data '{"text":"'$STATUS_EMOJI' Pipeline RNCP 39394 - '$STATUS_TEXT'\nBranche: '$CI_COMMIT_REF_NAME'\nCommit: '$CI_COMMIT_SHORT_SHA'\nDurée: '$CI_PIPELINE_DURATION's"}' \
+        $SLACK_WEBHOOK_URL
+  when: always

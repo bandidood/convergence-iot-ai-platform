@@ -1,0 +1,26 @@
+﻿# Configuration Traefik dynamique
+# Station Traffeyere Zero-Trust
+
+api:
+  dashboard: true
+  debug: false
+
+entryPoints:
+  web:
+    address: ':80'
+  websecure:
+    address: ':443'
+
+providers:
+  docker:
+    endpoint: 'unix:///var/run/docker.sock'
+    exposedByDefault: false
+    network: dmz_public
+
+log:
+  level: INFO
+
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true

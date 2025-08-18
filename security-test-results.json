@@ -1,0 +1,111 @@
+{
+  "timestamp": "1755467976.20036",
+  "standard_compliance": {
+    "standard": "ISA/IEC 62443",
+    "security_levels": {
+      "SL2": {
+        "description": "Protection contre violations intentionnelles avec ressources limitées",
+        "requirements_total": 6,
+        "requirements_passed": 6,
+        "compliance_percentage": 100.0,
+        "compliant": true
+      },
+      "SL1": {
+        "description": "Protection contre violations fortuites ou casual",
+        "requirements_total": 1,
+        "requirements_passed": 1,
+        "compliance_percentage": 100.0,
+        "compliant": true
+      }
+    },
+    "overall_compliance": true
+  },
+  "total_metrics": 7,
+  "passed": 7,
+  "failed": 0,
+  "critical_failures": 0,
+  "warnings": 0,
+  "overall_status": "PASS",
+  "security_level_achieved": "SL2",
+  "details": {
+    "evasion_robustness_score": {
+      "metric": "evasion_robustness_score",
+      "value": 0.95,
+      "threshold": 0.85,
+      "operator": ">=",
+      "valid": true,
+      "description": "Robustesse contre évasion",
+      "unit": "",
+      "critical": true,
+      "isa_requirement": "SL2-CM-4"
+    },
+    "poisoning_resistance_score": {
+      "metric": "poisoning_resistance_score",
+      "value": 0.92,
+      "threshold": 0.8,
+      "operator": ">=",
+      "valid": true,
+      "description": "Résistance empoisonnement",
+      "unit": "",
+      "critical": true,
+      "isa_requirement": "SL2-CM-3"
+    },
+    "model_inversion_protection_score": {
+      "metric": "model_inversion_protection_score",
+      "value": 0.875,
+      "threshold": 0.75,
+      "operator": ">=",
+      "valid": true,
+      "description": "Protection inversion modèle",
+      "unit": "",
+      "critical": true,
+      "isa_requirement": "SL2-CM-2"
+    },
+    "membership_inference_resistance": {
+      "metric": "membership_inference_resistance",
+      "value": 0.75,
+      "threshold": 0.7,
+      "operator": ">=",
+      "valid": true,
+      "description": "Résistance inférence appartenance",
+      "unit": "",
+      "critical": false,
+      "isa_requirement": "SL1-CM-1"
+    },
+    "adversarial_accuracy_drop_percentage": {
+      "metric": "adversarial_accuracy_drop_percentage",
+      "value": 4.8,
+      "threshold": 5.0,
+      "operator": "<",
+      "valid": true,
+      "description": "Chute précision sous attaque",
+      "unit": "%",
+      "critical": true,
+      "isa_requirement": "SL2-CM-4"
+    },
+    "input_validation_effectiveness": {
+      "metric": "input_validation_effectiveness",
+      "value": 0.965,
+      "threshold": 0.95,
+      "operator": ">=",
+      "valid": true,
+      "description": "Efficacité validation entrées",
+      "unit": "",
+      "critical": true,
+      "isa_requirement": "SL2-SI-1"
+    },
+    "anomaly_detection_sensitivity": {
+      "metric": "anomaly_detection_sensitivity",
+      "value": 0.942,
+      "threshold": 0.9,
+      "operator": ">=",
+      "valid": true,
+      "description": "Sensibilité détection anomalies",
+      "unit": "",
+      "critical": true,
+      "isa_requirement": "SL2-AN-3"
+    }
+  },
+  "failure_messages": [],
+  "warning_messages": []
+}

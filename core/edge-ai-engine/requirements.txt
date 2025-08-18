@@ -1,0 +1,52 @@
+# Requirements for Explainable Edge AI Engine - RNCP 39394
+# Week 3: Explainable Edge AI engine
+
+# Core ML libraries
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+
+# Deep learning (optional - graceful degradation)
+tensorflow>=2.13.0
+keras>=2.13.0
+
+# Explainable AI
+shap>=0.42.0
+lime>=0.2.0
+
+# Performance monitoring
+psutil>=5.9.0
+memory-profiler>=0.61.0
+
+# Data processing
+joblib>=1.3.0
+pickle5>=0.0.12
+
+# Time series and IoT
+pytz>=2023.3
+python-dateutil>=2.8.0
+
+# Async processing
+asyncio-mqtt>=0.13.0
+aiofiles>=23.0.0
+
+# Development and testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-benchmark>=4.0.0
+
+# Optimization
+numba>=0.57.0  # JIT compilation for performance
+cython>=3.0.0  # Optional C extensions
+
+# GPU support (CUDA)
+# tensorflow-gpu>=2.13.0  # Uncomment for GPU support
+# cupy-cuda11x>=12.0.0    # CUDA arrays for NumPy compatibility
+
+# Container runtime
+docker>=6.1.0
+
+# Monitoring and observability
+prometheus-client>=0.17.0
+grafana-api>=1.0.3

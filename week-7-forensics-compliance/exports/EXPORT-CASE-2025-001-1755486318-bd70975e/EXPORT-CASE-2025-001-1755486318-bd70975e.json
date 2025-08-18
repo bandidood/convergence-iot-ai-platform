@@ -1,0 +1,221 @@
+{
+  "package_id": "EXPORT-CASE-2025-001-1755486318-bd70975e",
+  "export_date": "2025-08-18T05:05:18.990910",
+  "evidence_count": 3,
+  "evidence_list": [
+    {
+      "id": "EVD-1755486318-342931d1",
+      "case_id": "CASE-2025-001",
+      "evidence_number": "CASE-2025-001-EVD-0007",
+      "title": "Document confidentiel #1",
+      "description": "Preuve numérique collectée dans le cadre de l'enquête",
+      "type": "file",
+      "status": "verified",
+      "collected_by": "Agent Smith",
+      "collected_at": "2025-08-18T05:05:18.404970",
+      "location_collected": "Station Traffeyère - Bureau Investigation",
+      "hash_verifications": [
+        {
+          "algorithm": "sha256",
+          "hash_value": "51d9bd4e60655e4a3d74040a7e6a872666b75bdb72780261ded409560e5ca766",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "md5",
+          "hash_value": "30bbba262d559084a1a6bc289181d5e8",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "sha1",
+          "hash_value": "021ea23e7a16b7266f25168a77db0604f407d954",
+          "verified_by": "Forensics Officer",
+          "status": true
+        }
+      ],
+      "custody_chain": [
+        {
+          "timestamp": "2025-08-18T05:05:18.528115",
+          "action": "collected",
+          "officer": "Agent Smith",
+          "location": "Station Traffeyère - Bureau Investigation",
+          "notes": "Evidence collected and encrypted. Original file: test_evidence_1.txt"
+        },
+        {
+          "timestamp": "2025-08-18T05:05:18.744963",
+          "action": "verified",
+          "officer": "Forensics Officer",
+          "location": "Evidence Storage",
+          "notes": "Integrity verification: {'sha256': True, 'md5': True, 'sha1': True}"
+        },
+        {
+          "timestamp": "2025-08-18T05:05:18.918372",
+          "action": "analyzed",
+          "officer": "Dr. Forensics",
+          "location": "Laboratoire Digital",
+          "notes": "Analyse forensics terminée - Aucune altération détectée"
+        },
+        {
+          "timestamp": "2025-08-18T05:05:18.936413",
+          "action": "sealed",
+          "officer": "Legal Officer",
+          "location": "Evidence Vault",
+          "notes": "Preuve scellée pour procédure judiciaire"
+        }
+      ],
+      "metadata": {
+        "file_size": 133,
+        "mime_type": "text/plain",
+        "creation_date": "2025-08-18T05:05:04.485758",
+        "modification_date": "2025-08-18T05:05:18.388004",
+        "exif_data": null,
+        "geolocation": null,
+        "device_info": null,
+        "network_info": null,
+        "user_context": null,
+        "application_context": null,
+        "tags": [],
+        "classification": "internal"
+      }
+    },
+    {
+      "id": "EVD-1755486318-5ccf3772",
+      "case_id": "CASE-2025-001",
+      "evidence_number": "CASE-2025-001-EVD-0008",
+      "title": "Document confidentiel #2",
+      "description": "Preuve numérique collectée dans le cadre de l'enquête",
+      "type": "file",
+      "status": "verified",
+      "collected_by": "Agent Smith",
+      "collected_at": "2025-08-18T05:05:18.547916",
+      "location_collected": "Station Traffeyère - Bureau Investigation",
+      "hash_verifications": [
+        {
+          "algorithm": "sha256",
+          "hash_value": "81219fcb9cab0e3041de13095e36d88ebc99731572a12b97339a6e5f51203869",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "md5",
+          "hash_value": "cd72fdb88dbe48b04aae9a246b4cdc99",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "sha1",
+          "hash_value": "8d58e902c54c345e3ea25ab85b32a96508c18e75",
+          "verified_by": "Forensics Officer",
+          "status": true
+        }
+      ],
+      "custody_chain": [
+        {
+          "timestamp": "2025-08-18T05:05:18.595412",
+          "action": "collected",
+          "officer": "Agent Smith",
+          "location": "Station Traffeyère - Bureau Investigation",
+          "notes": "Evidence collected and encrypted. Original file: test_evidence_2.txt"
+        },
+        {
+          "timestamp": "2025-08-18T05:05:18.822463",
+          "action": "verified",
+          "officer": "Forensics Officer",
+          "location": "Evidence Storage",
+          "notes": "Integrity verification: {'sha256': True, 'md5': True, 'sha1': True}"
+        },
+        {
+          "timestamp": "2025-08-18T05:05:18.954194",
+          "action": "analyzed",
+          "officer": "Dr. Forensics",
+          "location": "Laboratoire Digital",
+          "notes": "Analyse forensics terminée - Aucune altération détectée"
+        },
+        {
+          "timestamp": "2025-08-18T05:05:18.969578",
+          "action": "sealed",
+          "officer": "Legal Officer",
+          "location": "Evidence Vault",
+          "notes": "Preuve scellée pour procédure judiciaire"
+        }
+      ],
+      "metadata": {
+        "file_size": 133,
+        "mime_type": "text/plain",
+        "creation_date": "2025-08-18T05:05:04.488757",
+        "modification_date": "2025-08-18T05:05:18.394572",
+        "exif_data": null,
+        "geolocation": null,
+        "device_info": null,
+        "network_info": null,
+        "user_context": null,
+        "application_context": null,
+        "tags": [],
+        "classification": "internal"
+      }
+    },
+    {
+      "id": "EVD-1755486318-d988c764",
+      "case_id": "CASE-2025-001",
+      "evidence_number": "CASE-2025-001-EVD-0009",
+      "title": "Document confidentiel #3",
+      "description": "Preuve numérique collectée dans le cadre de l'enquête",
+      "type": "file",
+      "status": "verified",
+      "collected_by": "Agent Smith",
+      "collected_at": "2025-08-18T05:05:18.608641",
+      "location_collected": "Station Traffeyère - Bureau Investigation",
+      "hash_verifications": [
+        {
+          "algorithm": "sha256",
+          "hash_value": "101b76f6c04c3d5e6402d092205b635c3e86256292344083cbaa808e4d81807b",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "md5",
+          "hash_value": "8c9871077724d01ac95a0fb6b160bfe8",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "sha1",
+          "hash_value": "3de14b0df6f99edd524340da103919e62d575eb0",
+          "verified_by": "Forensics Officer",
+          "status": true
+        }
+      ],
+      "custody_chain": [
+        {
+          "timestamp": "2025-08-18T05:05:18.661229",
+          "action": "collected",
+          "officer": "Agent Smith",
+          "location": "Station Traffeyère - Bureau Investigation",
+          "notes": "Evidence collected and encrypted. Original file: test_evidence_3.txt"
+        },
+        {
+          "timestamp": "2025-08-18T05:05:18.900628",
+          "action": "verified",
+          "officer": "Forensics Officer",
+          "location": "Evidence Storage",
+          "notes": "Integrity verification: {'sha256': True, 'md5': True, 'sha1': True}"
+        }
+      ],
+      "metadata": {
+        "file_size": 133,
+        "mime_type": "text/plain",
+        "creation_date": "2025-08-18T05:05:04.489758",
+        "modification_date": "2025-08-18T05:05:18.398919",
+        "exif_data": null,
+        "geolocation": null,
+        "device_info": null,
+        "network_info": null,
+        "user_context": null,
+        "application_context": null,
+        "tags": [],
+        "classification": "internal"
+      }
+    }
+  ]
+}

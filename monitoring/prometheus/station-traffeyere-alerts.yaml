@@ -1,0 +1,362 @@
+# =============================================================================
+# RÈGLES D'ALERTE STATION TRAFFEYÈRE - CAPTEURS IoT
+# Expert en Systèmes d'Information et Sécurité
+# 
+# Alertes basées sur les seuils colorés définis dans Grafana
+# Surveillance eau + conformité environnementale
+# =============================================================================
+
+groups:
+# =============================================================================
+# GROUPE 1: CAPTEURS CRITIQUES - pH + O2 DISSOUS
+# =============================================================================
+- name: station-traffeyere-water-quality-critical
+  interval: 30s
+  rules:
+  
+  # pH Critique - Acidité dangereuse
+  - alert: StationTraffeyerePHCritical
+    expr: station_traffeyere_ph_current < 5.5 or station_traffeyere_ph_current > 9.5
+    for: 1m
+    labels:
+      severity: critical
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: ph
+    annotations:
+      summary: "🚨 pH CRITIQUE - Station Traffeyère"
+      description: "pH actuel: {{ $value }} (seuil critique: <5.5 ou >9.5) - Capteur: {{ $labels.sensor_id }} - Zone: {{ $labels.location }}"
+      runbook_url: "https://wiki.station-traffeyere.local/runbooks/ph-critical"
+
+  # pH Avertissement
+  - alert: StationTraffeyerePHWarning
+    expr: (station_traffeyere_ph_current >= 5.5 and station_traffeyere_ph_current < 6.5) or (station_traffeyere_ph_current > 8.5 and station_traffeyere_ph_current <= 9.5)
+    for: 5m
+    labels:
+      severity: warning
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: ph
+    annotations:
+      summary: "⚠️ pH en avertissement - Station Traffeyère"
+      description: "pH: {{ $value }} hors plage optimale (6.5-8.5) - Capteur: {{ $labels.sensor_id }}"
+
+  # O2 Dissous Critique
+  - alert: StationTraffeyereO2Critical
+    expr: station_traffeyere_o2_dissous_current < 5
+    for: 2m
+    labels:
+      severity: critical
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: oxygen
+    annotations:
+      summary: "🚨 OXYGÈNE DISSOUS CRITIQUE - Station Traffeyère"
+      description: "O2: {{ $value }} mg/L (minimum: 5 mg/L) - Capteur: {{ $labels.sensor_id }} - Zone: {{ $labels.location }}"
+      runbook_url: "https://wiki.station-traffeyere.local/runbooks/oxygen-critical"
+
+  # O2 Dissous Warning
+  - alert: StationTraffeyereO2Warning
+    expr: station_traffeyere_o2_dissous_current >= 5 and station_traffeyere_o2_dissous_current < 7
+    for: 10m
+    labels:
+      severity: warning
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: oxygen
+    annotations:
+      summary: "⚠️ Oxygène dissous faible - Station Traffeyère"
+      description: "O2: {{ $value }} mg/L (optimal: >7 mg/L) - Capteur: {{ $labels.sensor_id }}"
+
+# =============================================================================
+# GROUPE 2: TURBIDITÉ + TEMPÉRATURE
+# =============================================================================
+- name: station-traffeyere-physical-parameters
+  interval: 60s
+  rules:
+  
+  # Turbidité critique
+  - alert: StationTraffeyereTurbidityCritical
+    expr: station_traffeyere_turbidite_current > 10
+    for: 3m
+    labels:
+      severity: critical
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: turbidity
+    annotations:
+      summary: "🌫️ TURBIDITÉ CRITIQUE - Station Traffeyère"
+      description: "Turbidité: {{ $value }} NTU (maximum: 10 NTU) - Capteur: {{ $labels.sensor_id }}"
+
+  # Turbidité warning
+  - alert: StationTraffeyereTurbidityWarning
+    expr: station_traffeyere_turbidite_current >= 5 and station_traffeyere_turbidite_current <= 10
+    for: 10m
+    labels:
+      severity: warning
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: turbidity
+    annotations:
+      summary: "⚠️ Turbidité élevée - Station Traffeyère"
+      description: "Turbidité: {{ $value }} NTU (optimal: <5 NTU) - Capteur: {{ $labels.sensor_id }}"
+
+  # Température critique
+  - alert: StationTraffeyereTemperatureCritical
+    expr: station_traffeyere_temperature_current < 10 or station_traffeyere_temperature_current > 30
+    for: 5m
+    labels:
+      severity: critical
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: temperature
+    annotations:
+      summary: "🌡️ TEMPÉRATURE CRITIQUE - Station Traffeyère"
+      description: "Température: {{ $value }}°C (plage normale: 10-30°C) - Capteur: {{ $labels.sensor_id }}"
+
+  # Température warning
+  - alert: StationTraffeyereTemperatureWarning
+    expr: (station_traffeyere_temperature_current >= 10 and station_traffeyere_temperature_current < 15) or (station_traffeyere_temperature_current > 25 and station_traffeyere_temperature_current <= 30)
+    for: 15m
+    labels:
+      severity: warning
+      component: water-quality
+      type: environmental
+      station: traffeyere
+      parameter: temperature
+    annotations:
+      summary: "⚠️ Température hors plage optimale - Station Traffeyère"
+      description: "Température: {{ $value }}°C (optimal: 15-25°C) - Capteur: {{ $labels.sensor_id }}"
+
+# =============================================================================
+# GROUPE 3: DÉBIT + PRESSION - PARAMÈTRES HYDRAULIQUES
+# =============================================================================
+- name: station-traffeyere-hydraulic-parameters
+  interval: 45s
+  rules:
+  
+  # Débit critique
+  - alert: StationTraffeyereFlowCritical
+    expr: station_traffeyere_debit_current < 700 or station_traffeyere_debit_current > 2500
+    for: 2m
+    labels:
+      severity: critical
+      component: hydraulic-system
+      type: operational
+      station: traffeyere
+      parameter: flow
+    annotations:
+      summary: "💧 DÉBIT CRITIQUE - Station Traffeyère"
+      description: "Débit: {{ $value }} m³/h (plage normale: 700-2500 m³/h) - Capteur: {{ $labels.sensor_id }}"
+      runbook_url: "https://wiki.station-traffeyere.local/runbooks/flow-critical"
+
+  # Débit warning
+  - alert: StationTraffeyereFlowWarning
+    expr: (station_traffeyere_debit_current >= 700 and station_traffeyere_debit_current < 1000) or (station_traffeyere_debit_current > 2000 and station_traffeyere_debit_current <= 2500)
+    for: 10m
+    labels:
+      severity: warning
+      component: hydraulic-system
+      type: operational
+      station: traffeyere
+      parameter: flow
+    annotations:
+      summary: "⚠️ Débit hors plage optimale - Station Traffeyère"
+      description: "Débit: {{ $value }} m³/h (optimal: 1000-2000 m³/h) - Capteur: {{ $labels.sensor_id }}"
+
+  # Pression critique
+  - alert: StationTraffeyerePressureCritical
+    expr: station_traffeyere_pression_current < 0.5 or station_traffeyere_pression_current > 4.0
+    for: 1m
+    labels:
+      severity: critical
+      component: hydraulic-system
+      type: operational
+      station: traffeyere
+      parameter: pressure
+    annotations:
+      summary: "🔘 PRESSION CRITIQUE - Station Traffeyère"
+      description: "Pression: {{ $value }} bar (plage sûre: 0.5-4.0 bar) - Capteur: {{ $labels.sensor_id }}"
+      runbook_url: "https://wiki.station-traffeyere.local/runbooks/pressure-critical"
+
+  # Pression warning
+  - alert: StationTraffeyerePressureWarning
+    expr: (station_traffeyere_pression_current >= 0.5 and station_traffeyere_pression_current < 1.0) or (station_traffeyere_pression_current > 3.0 and station_traffeyere_pression_current <= 4.0)
+    for: 10m
+    labels:
+      severity: warning
+      component: hydraulic-system
+      type: operational
+      station: traffeyere
+      parameter: pressure
+    annotations:
+      summary: "⚠️ Pression hors plage optimale - Station Traffeyère"
+      description: "Pression: {{ $value }} bar (optimal: 1.0-3.0 bar) - Capteur: {{ $labels.sensor_id }}"
+
+# =============================================================================
+# GROUPE 4: PARAMÈTRES CHIMIQUES - POLLUTION
+# =============================================================================
+- name: station-traffeyere-chemical-parameters
+  interval: 90s
+  rules:
+  
+  # Azote Total critique
+  - alert: StationTraffeyereNitrogeCritical
+    expr: station_traffeyere_azote_total_current > 150
+    for: 5m
+    labels:
+      severity: critical
+      component: chemical-analysis
+      type: environmental
+      station: traffeyere
+      parameter: nitrogen
+    annotations:
+      summary: "🧬 AZOTE TOTAL CRITIQUE - Station Traffeyère"
+      description: "Azote Total: {{ $value }} mg/L (maximum: 150 mg/L) - Capteur: {{ $labels.sensor_id }}"
+
+  # Azote Total warning
+  - alert: StationTraffeyereNitrogenWarning
+    expr: station_traffeyere_azote_total_current >= 100 and station_traffeyere_azote_total_current <= 150
+    for: 15m
+    labels:
+      severity: warning
+      component: chemical-analysis
+      type: environmental
+      station: traffeyere
+      parameter: nitrogen
+    annotations:
+      summary: "⚠️ Azote Total élevé - Station Traffeyère"
+      description: "Azote Total: {{ $value }} mg/L (optimal: <100 mg/L) - Capteur: {{ $labels.sensor_id }}"
+
+  # Phosphore critique
+  - alert: StationTraffeyerePhosphorusCritical
+    expr: station_traffeyere_phosphore_current > 300
+    for: 5m
+    labels:
+      severity: critical
+      component: chemical-analysis
+      type: environmental
+      station: traffeyere
+      parameter: phosphorus
+    annotations:
+      summary: "⚛️ PHOSPHORE CRITIQUE - Station Traffeyère"
+      description: "Phosphore: {{ $value }} mg/L (maximum: 300 mg/L) - Capteur: {{ $labels.sensor_id }}"
+
+  # DCO (Demande Chimique en Oxygène) critique
+  - alert: StationTraffeyereCODCritical
+    expr: station_traffeyere_dco_current > 400
+    for: 5m
+    labels:
+      severity: critical
+      component: chemical-analysis
+      type: environmental
+      station: traffeyere
+      parameter: cod
+    annotations:
+      summary: "🔬 DCO CRITIQUE - Station Traffeyère"
+      description: "DCO: {{ $value }} mg/L (maximum: 400 mg/L) - Capteur: {{ $labels.sensor_id }}"
+
+# =============================================================================
+# GROUPE 5: CONFORMITÉ DERU + ANOMALIES IA
+# =============================================================================
+- name: station-traffeyere-compliance-ai
+  interval: 120s
+  rules:
+  
+  # Score conformité DERU critique
+  - alert: StationTraffeyereDERUComplianceCritical
+    expr: station_traffeyere_compliance_score < 80
+    for: 10m
+    labels:
+      severity: critical
+      component: compliance
+      type: regulatory
+      station: traffeyere
+      parameter: deru_score
+    annotations:
+      summary: "✅ CONFORMITÉ DERU CRITIQUE - Station Traffeyère"
+      description: "Score conformité: {{ $value }}% (minimum: 80%) - Risque de non-conformité réglementaire"
+      runbook_url: "https://wiki.station-traffeyere.local/runbooks/deru-compliance"
+
+  # Anomalies détectées par IA
+  - alert: StationTraffeyereAIAnomaliesBurst
+    expr: increase(station_traffeyere_anomalies_total[10m]) > 30
+    for: 2m
+    labels:
+      severity: critical
+      component: ai-engine
+      type: anomaly
+      station: traffeyere
+    annotations:
+      summary: "🚨 BURST D'ANOMALIES IA - Station Traffeyère"
+      description: "{{ $value }} anomalies détectées en 10 minutes - Intervention immédiate requise"
+
+  # Capteurs IoT indisponibles
+  - alert: StationTraffeyereSensorsDown
+    expr: station_traffeyere_total_sensors < 100
+    for: 5m
+    labels:
+      severity: warning
+      component: iot-sensors
+      type: availability
+      station: traffeyere
+    annotations:
+      summary: "📟 Capteurs IoT indisponibles - Station Traffeyère"
+      description: "Capteurs actifs: {{ $value }}/127 (minimum: 100) - Vérifier connectivité réseau"
+
+  # Débit d'entrée anormal
+  - alert: StationTraffeyereInletFlowAnomaly
+    expr: abs(station_traffeyere_inlet_flow_m3h - avg_over_time(station_traffeyere_inlet_flow_m3h[1h])) > (avg_over_time(station_traffeyere_inlet_flow_m3h[1h]) * 0.3)
+    for: 15m
+    labels:
+      severity: warning
+      component: hydraulic-system
+      type: anomaly
+      station: traffeyere
+    annotations:
+      summary: "💧 Débit d'entrée anormal - Station Traffeyère"
+      description: "Débit actuel: {{ $value }} m³/h - Variation >30% de la moyenne horaire"
+
+# =============================================================================
+# RECORDING RULES - MÉTRIQUES AGRÉGÉES STATION TRAFFEYÈRE
+# =============================================================================
+- name: station-traffeyere-recording-rules
+  interval: 60s
+  rules:
+  
+  # Score qualité globale eau
+  - record: station_traffeyere:water_quality_score
+    expr: |
+      (
+        (station_traffeyere_ph_current >= 6.5 and station_traffeyere_ph_current <= 8.5) * 25 +
+        (station_traffeyere_o2_dissous_current > 7) * 25 +
+        (station_traffeyere_turbidite_current < 5) * 25 +
+        (station_traffeyere_dco_current < 300) * 25
+      ) / 100 * 100
+
+  # Taux de capteurs opérationnels
+  - record: station_traffeyere:sensors_availability_percentage
+    expr: (station_traffeyere_total_sensors / 127) * 100
+
+  # Performance hydraulique moyenne
+  - record: station_traffeyere:hydraulic_performance_score
+    expr: |
+      (
+        (station_traffeyere_debit_current >= 1000 and station_traffeyere_debit_current <= 2000) * 50 +
+        (station_traffeyere_pression_current >= 1.0 and station_traffeyere_pression_current <= 3.0) * 50
+      ) / 100 * 100
+
+  # Taux d'anomalies par heure
+  - record: station_traffeyere:anomaly_rate_per_hour
+    expr: increase(station_traffeyere_anomalies_total[1h])
+
+  # Score conformité DERU tendance 24h
+  - record: station_traffeyere:deru_compliance_trend_24h
+    expr: avg_over_time(station_traffeyere_compliance_score[24h])

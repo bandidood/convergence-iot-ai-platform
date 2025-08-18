@@ -1,0 +1,76 @@
+# Configuration Prometheus - RNCP 39394
+# Monitoring Edge AI Engine + IoT Security
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Règles d'alertes
+rule_files:
+  - "rules.yaml"
+  - "station-traffeyere-alerts.yaml"
+
+# Configuration Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Jobs de scraping métriques
+scrape_configs:
+  # Monitoring Prometheus lui-même
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Monitoring Node Exporter (système)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Monitoring cAdvisor (containers)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Monitoring AI Engine
+  - job_name: 'ai-engine'
+    static_configs:
+      - targets: ['ai-engine:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 5s  # Plus fréquent pour IA temps réel
+
+  # Monitoring base de données
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres:5432']
+
+  # Monitoring MinIO
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+
+  # Monitoring IoT Station Traffeyère - 127 capteurs
+  - job_name: 'station-traffeyere-iot'
+    static_configs:
+      - targets: ['host.docker.internal:8090']
+    scrape_interval: 5s  # Données temps réel
+    scrape_timeout: 4s
+    metrics_path: /metrics
+    honor_labels: true
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'station_traffeyere_.*'
+        action: keep  # Garde seulement nos métriques
+
+  # Monitoring Edge AI Engine local
+  - job_name: 'edge-ai-engine'
+    static_configs:
+      - targets: ['host.docker.internal:8091']
+    scrape_interval: 1s  # Très fréquent pour edge latency
+    metrics_path: /metrics
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'edge_ai_.*'
+        action: keep

@@ -1,0 +1,25 @@
+apiVersion: 1
+
+# Configuration automatique des sources de données
+# RNCP 39394 - Expert en Systèmes d'Information et Sécurité
+
+datasources:
+  # Prometheus principal - Station Traffeyère
+  - name: Prometheus-Station-Traffeyere
+    type: prometheus
+    access: proxy
+    url: http://host.docker.internal:9090
+    uid: prometheus-main
+    isDefault: true
+    editable: true
+    
+    jsonData:
+      httpMethod: POST
+      prometheusType: Prometheus
+      prometheusVersion: 2.45.0
+      cacheLevel: 'High'
+      incrementalQuerying: true
+      manageAlerts: true
+      
+    # Configuration pour Edge AI et IoT
+    version: 1

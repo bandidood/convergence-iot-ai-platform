@@ -1,0 +1,108 @@
+# Configuration Prometheus simple - Station Traffeyère IoT + Edge AI
+# RNCP 39394 - Expert en Systèmes d'Information et Sécurité
+
+version: '3.8'
+
+networks:
+  monitoring:
+    driver: bridge
+    name: rncp-39394-monitoring-simple
+
+volumes:
+  prometheus_data:
+    driver: local
+    name: rncp-39394-prometheus-data
+  grafana_data:
+    driver: local
+    name: rncp-39394-grafana-data
+
+services:
+
+  # Prometheus - Métriques et alertes
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: rncp-39394-prometheus
+    restart: unless-stopped
+    
+    # Configuration sécurité
+    user: "65534:65534"  # nobody user
+    
+    # Ressources
+    mem_limit: 1g
+    mem_reservation: 512m
+    cpus: '1'
+    
+    # Réseau
+    networks:
+      - monitoring
+    ports:
+      - "9090:9090"
+    
+    # Configuration
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.listen-address=0.0.0.0:9090'
+      - '--log.level=info'
+      
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Grafana - Dashboards et visualisation
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: rncp-39394-grafana
+    restart: unless-stopped
+    
+    # Sécurité
+    user: "472:0"  # grafana user
+    
+    # Ressources
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: '0.5'
+    
+    # Réseau
+    networks:
+      - monitoring
+    ports:
+      - "3000:3000"
+    
+    # Variables d'environnement
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_LOG_LEVEL=info
+      - GF_EXPLORE_ENABLED=true
+      - GF_ALERTING_ENABLED=true
+      
+    volumes:
+      - grafana_data:/var/lib/grafana
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # Dépendances
+    depends_on:
+      - prometheus

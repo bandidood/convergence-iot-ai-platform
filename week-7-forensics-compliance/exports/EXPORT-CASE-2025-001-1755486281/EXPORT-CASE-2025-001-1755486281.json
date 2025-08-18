@@ -1,0 +1,70 @@
+{
+  "package_id": "EXPORT-CASE-2025-001-1755486281",
+  "export_date": "2025-08-18T05:04:41.021874",
+  "evidence_count": 3,
+  "evidence_list": [
+    {
+      "id": "EVD-1755486280-7e4f746c",
+      "case_id": "CASE-2025-001",
+      "evidence_number": "CASE-2025-001-EVD-0001",
+      "title": "Document confidentiel #1",
+      "description": "Preuve numérique collectée dans le cadre de l'enquête",
+      "type": "file",
+      "status": "verified",
+      "collected_by": "Agent Smith",
+      "collected_at": "2025-08-18T05:04:40.486433",
+      "location_collected": "Station Traffeyère - Bureau Investigation",
+      "hash_verifications": [
+        {
+          "algorithm": "sha256",
+          "hash_value": "e8ef6d01e1ea3540ea54b35cea340a76ee39d375d044f1ca53660486fae6f11c",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "md5",
+          "hash_value": "b2f3fd6fa48d6b0d2e3411ddfe498513",
+          "verified_by": "Forensics Officer",
+          "status": true
+        },
+        {
+          "algorithm": "sha1",
+          "hash_value": "22b8acc0c3806c849742fe47e10afe1442f6dc85",
+          "verified_by": "Forensics Officer",
+          "status": true
+        }
+      ],
+      "custody_chain": [
+        {
+          "timestamp": "2025-08-18T05:04:40.620877",
+          "action": "collected",
+          "officer": "Agent Smith",
+          "location": "Station Traffeyère - Bureau Investigation",
+          "notes": "Evidence collected and encrypted. Original file: test_evidence_1.txt"
+        },
+        {
+          "timestamp": "2025-08-18T05:04:40.810021",
+          "action": "verified",
+          "officer": "Forensics Officer",
+          "location": "Evidence Storage",
+          "notes": "Integrity verification: {'sha256': True, 'md5': True, 'sha1': True}"
+        },
+        {
+          "timestamp": "2025-08-18T05:04:40.954864",
+          "action": "analyzed",
+          "officer": "Dr. Forensics",
+          "location": "Laboratoire Digital",
+          "notes": "Analyse forensics terminée - Aucune altération détectée"
+        },
+        {
+          "timestamp": "2025-08-18T05:04:40.969884",
+          "action": "sealed",
+          "officer": "Legal Officer",
+          "location": "Evidence Vault",
+          "notes": "Preuve scellée pour procédure judiciaire"
+        }
+      ],
+      "metadata": {
+        "file_size": 133,
+        "mime_type": "text/plain",
+        "creation_date": 

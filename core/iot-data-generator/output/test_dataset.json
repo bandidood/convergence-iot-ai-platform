@@ -1,0 +1,212 @@
+[
+  {
+    "sensor_id": "PH_001",
+    "timestamp": "2025-08-17T23:24:02.531535",
+    "value": 7.34,
+    "unit": "pH",
+    "quality": "GOOD",
+    "location": "Basin_1",
+    "signature": "017f1d98abfc7f85",
+    "hash_integrity": "017f1d98abfc7f854b7bc204ba4f017d3dfeba5f07391a718ffd362a81420a08"
+  },
+  {
+    "sensor_id": "PH_001",
+    "timestamp": "2025-08-17T23:24:02.532536",
+    "value": 6.99,
+    "unit": "pH",
+    "quality": "GOOD",
+    "location": "Basin_1",
+    "signature": "a8eb6ffc24aaa982",
+    "hash_integrity": "a8eb6ffc24aaa98221779dddeaf441da29a9007888ca961f4a01b97c03db7254"
+  },
+  {
+    "sensor_id": "PH_001",
+    "timestamp": "2025-08-17T23:24:02.534551",
+    "value": 6.77,
+    "unit": "pH",
+    "quality": "GOOD",
+    "location": "Basin_1",
+    "signature": "1f1c8e6baf377f7b",
+    "hash_integrity": "1f1c8e6baf377f7b3a43a364e2b80a0a67952c15b151f984fccefa3273132766"
+  },
+  {
+    "sensor_id": "PH_001",
+    "timestamp": "2025-08-17T23:24:02.534551",
+    "value": 7.16,
+    "unit": "pH",
+    "quality": "GOOD",
+    "location": "Basin_1",
+    "signature": "a350d445ccb9983c",
+    "hash_integrity": "a350d445ccb9983c2beeb55c2ba690c6fa34784a2ffaebffd299bc4949273045"
+  },
+  {
+    "sensor_id": "PH_001",
+    "timestamp": "2025-08-17T23:24:02.535534",
+    "value": 6.75,
+    "unit": "pH",
+    "quality": "GOOD",
+    "location": "Basin_1",
+    "signature": "5fface9f2e01aef4",
+    "hash_integrity": "5fface9f2e01aef449107d8c5530a16bfc7f5c350eada96750b988e7f11d9064"
+  },
+  {
+    "sensor_id": "FLOW_001",
+    "timestamp": "2025-08-17T23:24:02.535534",
+    "value": 17578.81,
+    "unit": "m\u00b3/h",
+    "quality": "GOOD",
+    "location": "Pipe_1",
+    "signature": "0646662596d1c685",
+    "hash_integrity": "0646662596d1c685d7e91c73029b85db951664741449ac133a8c3b15e5369dbd"
+  },
+  {
+    "sensor_id": "FLOW_001",
+    "timestamp": "2025-08-17T23:24:02.536534",
+    "value": 18490.68,
+    "unit": "m\u00b3/h",
+    "quality": "GOOD",
+    "location": "Pipe_1",
+    "signature": "93c2e3e9381bf963",
+    "hash_integrity": "93c2e3e9381bf96380d3ae5c0c87557e4691bbf8db083b2ee3a625833f933084"
+  },
+  {
+    "sensor_id": "FLOW_001",
+    "timestamp": "2025-08-17T23:24:02.537550",
+    "value": 23349.51,
+    "unit": "m\u00b3/h",
+    "quality": "GOOD",
+    "location": "Pipe_1",
+    "signature": "4090b5480f4c0b84",
+    "hash_integrity": "4090b5480f4c0b8416963b32e7e3ce8f6edba711ba19ad540d04617df644e687"
+  },
+  {
+    "sensor_id": "FLOW_001",
+    "timestamp": "2025-08-17T23:24:02.537550",
+    "value": 22987.33,
+    "unit": "m\u00b3/h",
+    "quality": "GOOD",
+    "location": "Pipe_1",
+    "signature": "4f8db2b936d0df55",
+    "hash_integrity": "4f8db2b936d0df5579dadb315b81f9edfbcf4eb09aa0d56009917214e3317ed7"
+  },
+  {
+    "sensor_id": "FLOW_001",
+    "timestamp": "2025-08-17T23:24:02.539056",
+    "value": 19947.74,
+    "unit": "m\u00b3/h",
+    "quality": "GOOD",
+    "location": "Pipe_1",
+    "signature": "50d8438e5d560922",
+    "hash_integrity": "50d8438e5d560922875c22e7279a643d994a800fa5d7e04ac924d7ddbb4c41ed"
+  },
+  {
+    "sensor_id": "TURB_001",
+    "timestamp": "2025-08-17T23:24:02.539056",
+    "value": 9.94,
+    "unit": "NTU",
+    "quality": "GOOD",
+    "location": "Stage_1",
+    "signature": "9bfd32ed2ce52898",
+    "hash_integrity": "9bfd32ed2ce5289815a77adf26bd9a42680e0cbfeb6bd36d7fbb994b206ca302"
+  },
+  {
+    "sensor_id": "TURB_001",
+    "timestamp": "2025-08-17T23:24:02.539056",
+    "value": 10.89,
+    "unit": "NTU",
+    "quality": "GOOD",
+    "location": "Stage_1",
+    "signature": "6b5bcebca134ddbc",
+    "hash_integrity": "6b5bcebca134ddbca617ca292c58e104b326a2eebd1d0a8d7657604f9a1228df"
+  },
+  {
+    "sensor_id": "TURB_001",
+    "timestamp": "2025-08-17T23:24:02.539056",
+    "value": 12.66,
+    "unit": "NTU",
+    "quality": "GOOD",
+    "location": "Stage_1",
+    "signature": "3421a5fcea458fd2",
+    "hash_integrity": "3421a5fcea458fd2d542ad3c655eee48bf69c1eb3d8cb77872d3031702c9c4b7"
+  },
+  {
+    "sensor_id": "TURB_001",
+    "timestamp": "2025-08-17T23:24:02.539056",
+    "value": 27.28,
+    "unit": "NTU",
+    "quality": "GOOD",
+    "location": "Stage_1",
+    "signature": "4e909439ca2cb62b",
+    "hash_integrity": "4e909439ca2cb62b26dd2944b66069c79ea2869a1123bc9abb083ae19eeabbba"
+  },
+  {
+    "sensor_id": "TURB_001",
+    "timestamp": "2025-08-17T23:24:02.540077",
+    "value": 9.17,
+    "unit": "NTU",
+    "quality": "GOOD",
+    "location": "Stage_1",
+    "signature": "9ecc962560414ec9",
+    "hash_integrity": "9ecc962560414ec9181d12fc866a8427e3b55369ab340442721ee86673c57077"
+  },
+  {
+    "sensor_id": "O2_001",
+    "timestamp": "2025-08-17T23:24:02.540077",
+    "value": 9.81,
+    "unit": "mg/L",
+    "quality": "GOOD",
+    "location": "Aeration_1",
+    "signature": "24b25c0f8013baa8",
+    "hash_integrity": "24b25c0f8013baa8dcad7198a11690eb4d063f2143ef3be4bc1cf63450c6b453"
+  },
+  {
+    "sensor_id": "O2_001",
+    "timestamp": "2025-08-17T23:24:02.540077",
+    "value": 9.74,
+    "unit": "mg/L",
+    "quality": "GOOD",
+    "location": "Aeration_1",
+    "signature": "941e117274462d53",
+    "hash_integrity": "941e117274462d53971fe23164da877603fb29cf10a1fbb56d98fb9ab182257b"
+  },
+  {
+    "sensor_id": "O2_001",
+    "timestamp": "2025-08-17T23:24:02.540077",
+    "value": 9.05,
+    "unit": "mg/L",
+    "quality": "GOOD",
+    "location": "Aeration_1",
+    "signature": "7b0da7f2c374c8b8",
+    "hash_integrity": "7b0da7f2c374c8b8ac93e682f280bd085c65d297268bdf937dbc6079e6f6f436"
+  },
+  {
+    "sensor_id": "O2_001",
+    "timestamp": "2025-08-17T23:24:02.540077",
+    "value": 9.15,
+    "unit": "mg/L",
+    "quality": "GOOD",
+    "location": "Aeration_1",
+    "signature": "cec5586f5621a550",
+    "hash_integrity": "cec5586f5621a5503841680a2cd97e54c0dcfe9190deb68ef362db7f15320b59"
+  },
+  {
+    "sensor_id": "O2_001",
+    "timestamp": "2025-08-17T23:24:02.540077",
+    "value": 9.61,
+    "unit": "mg/L",
+    "quality": "GOOD",
+    "location": "Aeration_1",
+    "signature": "ef2fc21a64b0de8c",
+    "hash_integrity": "ef2fc21a64b0de8cb71560222817fad89b802c7286e8b05256055e026492267f"
+  },
+  {
+    "sensor_id": "PH_001",
+    "timestamp": "2025-08-17T23:24:02.540077",
+    "value": 17.125,
+    "unit": "pH",
+    "quality": "BAD",
+    "location": "Basin_1",
+    "signature": "47e02f800a2a18ea",
+    "hash_integrity": "47e02f800a2a18eac2a8387473a31bb3176b85027147f3bda0df05111088dcd6"
+  }
+]

@@ -1,0 +1,273 @@
+# 🎯 CONFIGURATION INCIDENT RESPONSE ORCHESTRATOR
+# Station Traffeyère IoT AI Platform - RNCP 39394 Semaine 6
+
+# Configuration générale
+general:
+  version: "1.0.0"
+  environment: "production"
+  log_level: "INFO"
+  database_path: "/data/incident_response.db"
+  max_concurrent_incidents: 50
+  default_timeout: 300
+
+# Métriques de performance
+performance:
+  mttr_target_minutes: 15
+  mttr_critical_threshold: 30
+  automation_rate_target: 95.0
+  success_rate_target: 98.0
+  
+# Configuration Threat Intelligence
+threat_intelligence:
+  # Feeds ANSSI-CERT
+  anssi:
+    enabled: true
+    base_url: "https://www.cert.ssi.gouv.fr/api/v1/"
+    api_key: "${ANSSI_API_KEY}"
+    cache_timeout: 3600
+    classification_mapping:
+      "TLP:RED": "CRITICAL"
+      "TLP:AMBER": "HIGH" 
+      "TLP:GREEN": "MEDIUM"
+      "TLP:WHITE": "LOW"
+  
+  # Serveur MISP
+  misp:
+    enabled: true
+    base_url: "http://localhost:8080"
+    api_key: "${MISP_API_KEY}"
+    verify_ssl: false
+    cache_timeout: 1800
+    event_filters:
+      - "malware"
+      - "apt"
+      - "industrial"
+      - "water-treatment"
+  
+  # VirusTotal
+  virustotal:
+    enabled: true
+    api_key: "${VIRUSTOTAL_API_KEY}"
+    rate_limit: 4  # requêtes par minute
+    detection_threshold: 5  # minimum détections pour considérer malveillant
+
+# Configuration isolation automatique
+automated_isolation:
+  # Isolation réseau
+  network:
+    enabled: true
+    firewall_command: "iptables -A INPUT -s {ip} -j DROP"
+    vlan_quarantine: 999
+    emergency_block_timeout: 10
+    
+  # Isolation systèmes
+  system:
+    enabled: true
+    quarantine_vlan: 888
+    isolation_timeout: 30
+    preserve_evidence: true
+    
+  # Isolation IoT devices
+  iot_devices:
+    enabled: true
+    lorawan_isolation: true
+    cellular_isolation: true
+    device_reset_allowed: false
+    
+  # Isolation utilisateurs
+  user_accounts:
+    enabled: true
+    active_directory_integration: true
+    temporary_disable: true
+    password_reset_force: true
+
+# Configuration playbooks
+playbooks:
+  # Malware critique
+  critical_malware_advanced:
+    enabled: true
+    auto_trigger: true
+    severity: "CRITICAL"
+    mttr_target: 10
+    escalation_threshold: 15
+    actions:
+      immediate_isolation:
+        timeout: 10
+        critical_path: true
+        rollback_allowed: false
+      threat_intel_enrichment:
+        timeout: 30
+        parallel_execution: true
+        confidence_threshold: 0.7
+      forensic_evidence_collection:
+        timeout: 60
+        preserve_chain_custody: true
+        
+  # Campagne APT
+  apt_campaign_response:
+    enabled: true
+    auto_trigger: false  # Approbation manuelle requise
+    severity: "CRITICAL"
+    mttr_target: 30
+    escalation_threshold: 45
+    stakeholders:
+      - "SOC"
+      - "CISO" 
+      - "CEO"
+      - "Legal"
+      
+  # Botnet IoT
+  iot_botnet_response:
+    enabled: true
+    auto_trigger: true
+    severity: "HIGH"
+    mttr_target: 20
+    bulk_operations: true
+    device_quarantine_duration: 24  # heures
+
+# Configuration notifications
+notifications:
+  # Slack
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channels:
+      critical: "#soc-critical"
+      high: "#soc-alerts"
+      medium: "#soc-monitoring"
+    
+  # Email
+  email:
+    enabled: true
+    smtp_server: "mail.traffeyere.local"
+    smtp_port: 587
+    from_address: "soc@traffeyere.local"
+    escalation_matrix:
+      CRITICAL:
+        - "ciso@traffeyere.local"
+        - "ceo@traffeyere.local"
+      HIGH:
+        - "soc-team@traffeyere.local"
+        - "it-security@traffeyere.local"
+      
+  # Webhook externe
+  webhooks:
+    enabled: true
+    endpoints:
+      - name: "splunk_siem"
+        url: "http://splunk:8088/services/collector"
+        headers:
+          Authorization: "Splunk ${SPLUNK_HEC_TOKEN}"
+      - name: "grafana_alerts"
+        url: "http://grafana:3000/api/alerts"
+
+# Configuration sécurité
+security:
+  # Chiffrement
+  encryption:
+    algorithm: "AES-256-GCM"
+    key_rotation_days: 90
+    
+  # Authentification
+  authentication:
+    method: "JWT"
+    token_expiry: 3600
+    mfa_required: true
+    
+  # Audit trail
+  audit:
+    enabled: true
+    log_all_actions: true
+    retention_days: 2555  # 7 ans conformité
+    integrity_checks: true
+
+# Configuration intégrations
+integrations:
+  # SIEM Splunk
+  splunk:
+    enabled: true
+    base_url: "http://splunk:8089"
+    username: "${SPLUNK_USER}"
+    password: "${SPLUNK_PASS}"
+    
+  # Grafana monitoring
+  grafana:
+    enabled: true
+    base_url: "http://grafana:3000"
+    api_key: "${GRAFANA_API_KEY}"
+    
+  # Kubernetes
+  kubernetes:
+    enabled: true
+    config_path: "/etc/kubernetes/config"
+    namespace: "security-monitoring"
+    
+  # Base de données
+  database:
+    type: "sqlite"  # ou "postgresql"
+    connection_string: "sqlite:///data/incident_response.db"
+    connection_pool_size: 10
+    
+# Configuration monitoring
+monitoring:
+  # Métriques Prometheus
+  prometheus:
+    enabled: true
+    metrics_port: 9090
+    metrics_path: "/metrics"
+    
+  # Health checks
+  health_checks:
+    enabled: true
+    check_interval: 30
+    endpoints:
+      - "threat_intelligence"
+      - "isolation_engine"
+      - "playbook_engine"
+      
+  # Performance monitoring
+  performance_monitoring:
+    enabled: true
+    sample_rate: 1.0
+    slow_query_threshold: 1000  # ms
+
+# Configuration development/test
+development:
+  debug_mode: false
+  mock_external_apis: false
+  test_incidents_enabled: true
+  simulation_mode: false
+  
+# Configuration compliance
+compliance:
+  # ISO 27001
+  iso27001:
+    enabled: true
+    audit_trail_required: true
+    incident_classification: true
+    
+  # RGPD
+  gdpr:
+    enabled: true
+    data_retention_policy: true
+    privacy_impact_assessment: true
+    
+  # ISA/IEC 62443
+  isa_iec_62443:
+    enabled: true
+    security_level: "SL2+"
+    industrial_protocols: true
+
+# Variables d'environnement (à définir séparément)
+environment_variables:
+  required:
+    - "ANSSI_API_KEY"
+    - "MISP_API_KEY" 
+    - "VIRUSTOTAL_API_KEY"
+    - "SLACK_WEBHOOK_URL"
+    - "SPLUNK_HEC_TOKEN"
+    - "GRAFANA_API_KEY"
+  optional:
+    - "SMTP_PASSWORD"
+    - "AD_ADMIN_PASS"
+    - "ENCRYPTION_KEY"

@@ -1,0 +1,100 @@
+RAPPORT OFFICIEL DE PREUVES NUMÉRIQUES
+================================================================
+Station Traffeyère - Evidence Management System
+
+INFORMATIONS GÉNÉRALES:
+Affaire ID: CASE-2025-001
+Package ID: EXPORT-CASE-2025-001-1755486319-cada3440_report
+Autorité: Archive
+Date d'export: 18/08/2025 05:05:19
+Nombre de preuves: 3
+
+INVENTAIRE DES PREUVES:
+
+==================================================
+Preuve #1 - EVD-1755486318-342931d1
+==================================================
+N° Preuve: CASE-2025-001-EVD-0007
+Titre: Document confidentiel #1
+Type: file
+Collectée par: Agent Smith
+Date collecte: 18/08/2025 05:05:18
+Lieu: Station Traffeyère - Bureau Investigation
+Statut: verified
+
+Hashs d'intégrité:
+  SHA256: 51d9bd4e60655e4a3d74040a7e6a872666b75bdb72780261ded409560e5ca766
+  MD5: 30bbba262d559084a1a6bc289181d5e8
+  SHA1: 021ea23e7a16b7266f25168a77db0604f407d954
+
+Chaîne de possession:
+  18/08/2025 05:05 - collected par Agent Smith
+  18/08/2025 05:05 - verified par Forensics Officer
+  18/08/2025 05:05 - analyzed par Dr. Forensics
+  18/08/2025 05:05 - sealed par Legal Officer
+  18/08/2025 05:05 - exported par system
+  18/08/2025 05:05 - exported par system
+
+==================================================
+Preuve #2 - EVD-1755486318-5ccf3772
+==================================================
+N° Preuve: CASE-2025-001-EVD-0008
+Titre: Document confidentiel #2
+Type: file
+Collectée par: Agent Smith
+Date collecte: 18/08/2025 05:05:18
+Lieu: Station Traffeyère - Bureau Investigation
+Statut: verified
+
+Hashs d'intégrité:
+  SHA256: 81219fcb9cab0e3041de13095e36d88ebc99731572a12b97339a6e5f51203869
+  MD5: cd72fdb88dbe48b04aae9a246b4cdc99
+  SHA1: 8d58e902c54c345e3ea25ab85b32a96508c18e75
+
+Chaîne de possession:
+  18/08/2025 05:05 - collected par Agent Smith
+  18/08/2025 05:05 - verified par Forensics Officer
+  18/08/2025 05:05 - analyzed par Dr. Forensics
+  18/08/2025 05:05 - sealed par Legal Officer
+  18/08/2025 05:05 - exported par system
+  18/08/2025 05:05 - exported par system
+
+==================================================
+Preuve #3 - EVD-1755486318-d988c764
+==================================================
+N° Preuve: CASE-2025-001-EVD-0009
+Titre: Document confidentiel #3
+Type: file
+Collectée par: Agent Smith
+Date collecte: 18/08/2025 05:05:18
+Lieu: Station Traffeyère - Bureau Investigation
+Statut: verified
+
+Hashs d'intégrité:
+  SHA256: 101b76f6c04c3d5e6402d092205b635c3e86256292344083cbaa808e4d81807b
+  MD5: 8c9871077724d01ac95a0fb6b160bfe8
+  SHA1: 3de14b0df6f99edd524340da103919e62d575eb0
+
+Chaîne de possession:
+  18/08/2025 05:05 - collected par Agent Smith
+  18/08/2025 05:05 - verified par Forensics Officer
+  18/08/2025 05:05 - exported par system
+
+
+======================================================================
+CERTIFICATION D'INTÉGRITÉ
+======================================================================
+
+Ce document certifie que les preuves numériques listées ci-dessus ont été collectées,
+traitées et exportées conformément aux procédures forensics en vigueur.
+
+L'intégrité de chaque preuve a été vérifiée par hash cryptographique.
+La chaîne de possession est documentée et vérifiable.
+
+Document généré automatiquement par le système Evidence Management
+de la Station de Traitement Traffeyère le 18/08/2025 à 05:05:19.
+
+CONFIDENTIEL - USAGE JUDICIAIRE EXCLUSIF
+
+NOTE: Export PDF désactivé - module reportlab non disponible.
+Ce rapport a été généré en format texte.

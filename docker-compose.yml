@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL sécurisé avec TimescaleDB
   postgres:
@@ -102,6 +100,7 @@ services:
       - "3001:3000"
     networks:
       - backend
+      - rncp-39394-monitoring-simple
     restart: unless-stopped
 
 volumes:
@@ -121,9 +120,11 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.22.0.0/16
   iot_network:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.21.0.0/16
+        - subnet: 172.23.0.0/16
+  rncp-39394-monitoring-simple:
+    external: true

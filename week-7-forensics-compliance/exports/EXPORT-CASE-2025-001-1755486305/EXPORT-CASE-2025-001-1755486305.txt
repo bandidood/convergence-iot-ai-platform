@@ -1,0 +1,77 @@
+RAPPORT OFFICIEL DE PREUVES NUMÉRIQUES
+================================================================
+Station Traffeyère - Evidence Management System
+
+INFORMATIONS GÉNÉRALES:
+Affaire ID: CASE-2025-001
+Package ID: EXPORT-CASE-2025-001-1755486305
+Autorité: Tribunal Correctionnel
+Date d'export: 18/08/2025 05:05:05
+Nombre de preuves: 2
+
+INVENTAIRE DES PREUVES:
+
+==================================================
+Preuve #1 - EVD-1755486304-320e9423
+==================================================
+N° Preuve: CASE-2025-001-EVD-0004
+Titre: Document confidentiel #1
+Type: file
+Collectée par: Agent Smith
+Date collecte: 18/08/2025 05:05:04
+Lieu: Station Traffeyère - Bureau Investigation
+Statut: verified
+
+Hashs d'intégrité:
+  SHA256: fcffad4db008d5abdea2136f89beb5d6a0fda27237abd0543b9759dacf7c2dc1
+  MD5: c7f17cf0c39003066081f8726eba4e5d
+  SHA1: a97e8bed193d70d07432fe88fbdfd0a1bb610339
+
+Chaîne de possession:
+  18/08/2025 05:05 - collected par Agent Smith
+  18/08/2025 05:05 - verified par Forensics Officer
+  18/08/2025 05:05 - analyzed par Dr. Forensics
+  18/08/2025 05:05 - sealed par Legal Officer
+  18/08/2025 05:05 - exported par system
+
+==================================================
+Preuve #2 - EVD-1755486304-6ad1c0e9
+==================================================
+N° Preuve: CASE-2025-001-EVD-0005
+Titre: Document confidentiel #2
+Type: file
+Collectée par: Agent Smith
+Date collecte: 18/08/2025 05:05:04
+Lieu: Station Traffeyère - Bureau Investigation
+Statut: verified
+
+Hashs d'intégrité:
+  SHA256: a0e55b24dcf02cdd2054189e5ff57cc21d0a2ee2cc70c9f2d822dda32be8387a
+  MD5: 0139b12d199f328a41f96725a5aad688
+  SHA1: 6c461e0a12e7d22acfa4122e5d3b60f2ed2416f3
+
+Chaîne de possession:
+  18/08/2025 05:05 - collected par Agent Smith
+  18/08/2025 05:05 - verified par Forensics Officer
+  18/08/2025 05:05 - analyzed par Dr. Forensics
+  18/08/2025 05:05 - sealed par Legal Officer
+  18/08/2025 05:05 - exported par system
+
+
+======================================================================
+CERTIFICATION D'INTÉGRITÉ
+======================================================================
+
+Ce document certifie que les preuves numériques listées ci-dessus ont été collectées,
+traitées et exportées conformément aux procédures forensics en vigueur.
+
+L'intégrité de chaque preuve a été vérifiée par hash cryptographique.
+La chaîne de possession est documentée et vérifiable.
+
+Document généré automatiquement par le système Evidence Management
+de la Station de Traitement Traffeyère le 18/08/2025 à 05:05:05.
+
+CONFIDENTIEL - USAGE JUDICIAIRE EXCLUSIF
+
+NOTE: Export PDF désactivé - module reportlab non disponible.
+Ce rapport a été généré en format texte.

@@ -1,0 +1,312 @@
+# =============================================================================
+# CONFIGURATION ALERTMANAGER - RNCP 39394
+# Expert en Systèmes d'Information et Sécurité
+# 
+# Notification multi-canaux + escalade automatique
+# Conformité ISA/IEC 62443 + traçabilité complète
+# =============================================================================
+
+global:
+  # Configuration SMTP pour notifications email
+  smtp_smarthost: 'smtp.company.com:587'
+  smtp_from: 'alertes-rncp39394@company.com'
+  smtp_auth_username: 'alert-service@company.com'
+  smtp_auth_password_file: '/run/secrets/alertmanager_smtp_password'
+  smtp_require_tls: true
+  
+  # Templates personnalisés
+  smtp_hello: 'alertmanager.rncp-39394.local'
+
+# =============================================================================
+# CONFIGURATION DES ROUTES D'ALERTE
+# =============================================================================
+route:
+  # Paramètres globaux de groupement
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s        # Attente avant envoi groupe
+  group_interval: 5m     # Intervalle entre envois groupés
+  repeat_interval: 4h    # Répétition si non acquittée
+  
+  # Récepteur par défaut
+  receiver: 'default-alerts'
+  
+  # Routes spécialisées par criticité et composant
+  routes:
+  
+  # =============================================================================
+  # ALERTES CRITIQUES - NOTIFICATION IMMÉDIATE
+  # =============================================================================
+  - match:
+      severity: critical
+    receiver: 'critical-alerts'
+    group_wait: 0s         # Notification immédiate
+    group_interval: 1m
+    repeat_interval: 30m   # Répétition toutes les 30min si non résolue
+    routes:
+    
+    # AI Engine critique - Escalade rapide
+    - match:
+        component: ai-engine
+        severity: critical
+      receiver: 'ai-engine-critical'
+      group_wait: 0s
+      
+    # Sécurité IoT critique - Notification équipe SOC
+    - match:
+        type: security
+        severity: critical
+      receiver: 'security-team'
+      group_wait: 0s
+      
+    # Infrastructure critique - Notification ops
+    - match:
+        component: infrastructure
+        severity: critical
+      receiver: 'ops-team-critical'
+      group_wait: 0s
+
+  # =============================================================================
+  # ALERTES WARNING - NOTIFICATION DIFFÉRÉE
+  # =============================================================================
+  - match:
+      severity: warning
+    receiver: 'warning-alerts'
+    group_wait: 2m
+    group_interval: 10m
+    repeat_interval: 2h
+    
+  # =============================================================================
+  # ALERTES CONFORMITÉ - NOTIFICATION ÉQUIPE AUDIT
+  # =============================================================================
+  - match:
+      type: compliance
+    receiver: 'compliance-team'
+    group_wait: 5m
+    group_interval: 30m
+    repeat_interval: 12h
+
+# =============================================================================
+# DÉFINITION DES RÉCEPTEURS
+# =============================================================================
+receivers:
+
+# -----------------------------------------------------------------------------
+# Récepteur par défaut
+# -----------------------------------------------------------------------------
+- name: 'default-alerts'
+  email_configs:
+  - to: 'admin@company.com'
+    from: 'alertes-rncp39394@company.com'
+    subject: '[RNCP 39394] Alerte Système - {{ .GroupLabels.alertname }}'
+    html: |
+      <h2>🔔 Alerte Plateforme IoT AI - RNCP 39394</h2>
+      <p><strong>Criticité:</strong> {{ .CommonLabels.severity }}</p>
+      <p><strong>Composant:</strong> {{ .CommonLabels.component }}</p>
+      <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+      <p><strong>Timestamp:</strong> {{ .CommonAnnotations.timestamp }}</p>
+      
+# -----------------------------------------------------------------------------
+# Alertes critiques - Notification multi-canaux
+# -----------------------------------------------------------------------------
+- name: 'critical-alerts'
+  # Email urgent
+  email_configs:
+  - to: 'admin@company.com, ops@company.com'
+    from: 'alertes-rncp39394@company.com'
+    subject: '🚨 [CRITIQUE] RNCP 39394 - {{ .GroupLabels.alertname }}'
+    html: |
+      <div style="background-color:#ff4444; color:white; padding:15px; border-radius:5px;">
+        <h1>🚨 ALERTE CRITIQUE - INTERVENTION IMMÉDIATE</h1>
+        <h2>Plateforme IoT AI - RNCP 39394</h2>
+      </div>
+      
+      <h3>📊 Détails de l'alerte:</h3>
+      <ul>
+        {{ range .Alerts }}
+        <li><strong>{{ .Labels.alertname }}</strong>: {{ .Annotations.summary }}</li>
+        <li><strong>Description:</strong> {{ .Annotations.description }}</li>
+        <li><strong>Composant:</strong> {{ .Labels.component }}</li>
+        <li><strong>Instance:</strong> {{ .Labels.instance }}</li>
+        <li><strong>Début:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}</li>
+        {{ if .Annotations.runbook_url }}
+        <li><strong>Runbook:</strong> <a href="{{ .Annotations.runbook_url }}">Procédure de résolution</a></li>
+        {{ end }}
+        {{ end }}
+      </ul>
+      
+      <h3>🎯 Actions requises:</h3>
+      <p>1. Vérifier le dashboard Grafana: <a href="https://grafana.rncp-39394.local">Monitoring</a></p>
+      <p>2. Consulter les logs Splunk pour investigation approfondie</p>
+      <p>3. Déclencher procédure d'escalade si nécessaire</p>
+      
+      <hr>
+      <small>Alerte générée par Prometheus - RNCP 39394 Expert SI & Sécurité</small>
+      
+  # Slack critique
+  slack_configs:
+  - api_url_file: '/run/secrets/slack_webhook_url'
+    channel: '#rncp-39394-critical'
+    title: '🚨 Alerte Critique RNCP 39394'
+    text: |
+      *{{ .GroupLabels.alertname }}* - Intervention immédiate requise
+      
+      {{ range .Alerts }}
+      • *Composant:* {{ .Labels.component }}
+      • *Severité:* {{ .Labels.severity }}
+      • *Description:* {{ .Annotations.summary }}
+      • *Instance:* {{ .Labels.instance }}
+      {{ if .Annotations.runbook_url }}
+      • *Runbook:* {{ .Annotations.runbook_url }}
+      {{ end }}
+      {{ end }}
+      
+      📊 <https://grafana.rncp-39394.local|Dashboard Grafana>
+    color: 'danger'
+
+# -----------------------------------------------------------------------------
+# AI Engine critique - Escalade spécialisée
+# -----------------------------------------------------------------------------
+- name: 'ai-engine-critical'
+  email_configs:
+  - to: 'ai-team@company.com, cto@company.com'
+    from: 'alertes-rncp39394@company.com'
+    subject: '🎯 [AI ENGINE CRITIQUE] RNCP 39394 - Performance dégradée'
+    html: |
+      <div style="background-color:#ff6600; color:white; padding:15px;">
+        <h1>🎯 ALERTE AI ENGINE - PERFORMANCE CRITIQUE</h1>
+        <p>Le moteur d'IA RNCP 39394 nécessite une intervention immédiate</p>
+      </div>
+      
+      <h3>📈 Métriques critiques:</h3>
+      {{ range .Alerts }}
+      <p><strong>{{ .Labels.alertname }}:</strong> {{ .Annotations.description }}</p>
+      {{ end }}
+      
+      <h3>🔧 Actions de dépannage:</h3>
+      <ol>
+        <li>Vérifier la latence P95 (objectif < 0.28ms)</li>
+        <li>Contrôler la précision du modèle (minimum 97.6%)</li>
+        <li>Analyser les logs d'inférence</li>
+        <li>Valider les ressources GPU</li>
+      </ol>
+      
+  # PagerDuty pour escalade automatique
+  pagerduty_configs:
+  - routing_key: '1234567890abcdef'
+    description: 'AI Engine RNCP 39394 - Performance critique'
+
+# -----------------------------------------------------------------------------
+# Équipe sécurité - Cyberattaques et anomalies
+# -----------------------------------------------------------------------------
+- name: 'security-team'
+  email_configs:
+  - to: 'security@company.com, soc@company.com'
+    from: 'alertes-rncp39394@company.com'
+    subject: '🛡️ [SÉCURITÉ] RNCP 39394 - Incident de sécurité détecté'
+    html: |
+      <div style="background-color:#cc0000; color:white; padding:15px;">
+        <h1>🛡️ INCIDENT DE SÉCURITÉ - RNCP 39394</h1>
+        <p>Anomalie ou cyberattaque détectée sur la plateforme IoT AI</p>
+      </div>
+      
+      <h3>🔍 Détails de l'incident:</h3>
+      {{ range .Alerts }}
+      <p><strong>{{ .Labels.alertname }}:</strong> {{ .Annotations.summary }}</p>
+      <p><strong>Type:</strong> {{ .Labels.type }}</p>
+      <p><strong>Composant:</strong> {{ .Labels.component }}</p>
+      <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+      {{ end }}
+      
+      <h3>⚡ Actions immédiates:</h3>
+      <ol>
+        <li>Isoler le composant affecté si nécessaire</li>
+        <li>Vérifier les logs de sécurité dans Splunk</li>
+        <li>Activer le plan de réponse aux incidents</li>
+        <li>Notifier le RSSI</li>
+      </ol>
+
+# -----------------------------------------------------------------------------
+# Équipe opérationnelle - Infrastructure critique
+# -----------------------------------------------------------------------------
+- name: 'ops-team-critical'
+  email_configs:
+  - to: 'ops@company.com, infra@company.com'
+    from: 'alertes-rncp39394@company.com'
+    subject: '⚡ [INFRA CRITIQUE] RNCP 39394 - Problème infrastructure'
+    html: |
+      <div style="background-color:#ff8800; color:white; padding:15px;">
+        <h1>⚡ INFRASTRUCTURE CRITIQUE</h1>
+        <p>Problème critique détecté sur l'infrastructure RNCP 39394</p>
+      </div>
+      
+      {{ range .Alerts }}
+      <p><strong>{{ .Labels.alertname }}:</strong> {{ .Annotations.summary }}</p>
+      <p><strong>Instance:</strong> {{ .Labels.instance }}</p>
+      <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+      {{ end }}
+
+# -----------------------------------------------------------------------------
+# Alertes warning - Notification standard
+# -----------------------------------------------------------------------------
+- name: 'warning-alerts'
+  email_configs:
+  - to: 'admin@company.com'
+    from: 'alertes-rncp39394@company.com'
+    subject: '⚠️ [WARNING] RNCP 39394 - {{ .GroupLabels.alertname }}'
+    html: |
+      <h2>⚠️ Alerte Warning - RNCP 39394</h2>
+      {{ range .Alerts }}
+      <p><strong>{{ .Labels.alertname }}:</strong> {{ .Annotations.summary }}</p>
+      {{ end }}
+
+# -----------------------------------------------------------------------------
+# Équipe conformité - Audit et compliance
+# -----------------------------------------------------------------------------
+- name: 'compliance-team'
+  email_configs:
+  - to: 'compliance@company.com, audit@company.com'
+    from: 'alertes-rncp39394@company.com'
+    subject: '📋 [CONFORMITÉ] RNCP 39394 - Problème de conformité'
+    html: |
+      <div style="background-color:#6600cc; color:white; padding:15px;">
+        <h1>📋 PROBLÈME DE CONFORMITÉ</h1>
+        <p>Non-conformité détectée sur la plateforme RNCP 39394</p>
+      </div>
+      
+      {{ range .Alerts }}
+      <p><strong>{{ .Labels.alertname }}:</strong> {{ .Annotations.summary }}</p>
+      <p><strong>Type:</strong> {{ .Labels.type }}</p>
+      <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+      {{ end }}
+      
+      <h3>📝 Actions requises:</h3>
+      <ol>
+        <li>Vérifier la traçabilité des événements</li>
+        <li>Contrôler les procédures d'audit</li>
+        <li>Documenter l'incident</li>
+        <li>Implémenter les corrections nécessaires</li>
+      </ol>
+
+# =============================================================================
+# TEMPLATES PERSONNALISÉS
+# =============================================================================
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# =============================================================================
+# CONFIGURATION D'INHIBITION
+# =============================================================================
+inhibit_rules:
+  # Supprimer les alertes warning si critique active
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+    
+  # Supprimer les alertes de disponibilité si maintenance
+  - source_match:
+      alertname: 'MaintenanceMode'
+    target_match:
+      type: 'availability'
+    equal: ['instance']

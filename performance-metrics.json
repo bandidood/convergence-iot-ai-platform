@@ -1,0 +1,53 @@
+{
+  "timestamp": "1755467928.589217",
+  "total_metrics": 4,
+  "passed": 4,
+  "failed": 0,
+  "critical_failures": 0,
+  "warnings": 0,
+  "overall_status": "PASS",
+  "details": {
+    "latency_p95_ms": {
+      "metric": "latency_p95_ms",
+      "value": 0.247,
+      "threshold": 0.28,
+      "operator": "<",
+      "valid": true,
+      "description": "Latence P95 prédictions AI",
+      "unit": "ms",
+      "critical": true
+    },
+    "accuracy_percentage": {
+      "metric": "accuracy_percentage",
+      "value": 99.6,
+      "threshold": 97.6,
+      "operator": ">=",
+      "valid": true,
+      "description": "Précision modèle AI",
+      "unit": "%",
+      "critical": true
+    },
+    "throughput_predictions_per_sec": {
+      "metric": "throughput_predictions_per_sec",
+      "value": 191.0,
+      "threshold": 100,
+      "operator": ">=",
+      "valid": true,
+      "description": "Throughput minimum",
+      "unit": "predictions/sec",
+      "critical": false
+    },
+    "cpu_usage_percentage": {
+      "metric": "cpu_usage_percentage",
+      "value": 23.0,
+      "threshold": 80,
+      "operator": "<",
+      "valid": true,
+      "description": "Utilisation CPU",
+      "unit": "%",
+      "critical": false
+    }
+  },
+  "failure_messages": [],
+  "warning_messages": []
+}

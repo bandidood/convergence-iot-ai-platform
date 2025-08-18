@@ -1,0 +1,323 @@
+# =============================================================================
+# RÈGLES PROMETHEUS - MONITORING RNCP 39394
+# Expert en Systèmes d'Information et Sécurité
+# 
+# Surveillance temps réel Edge AI Engine + IoT Security
+# Conformité ISA/IEC 62443 + alertes critiques < 30s
+# =============================================================================
+
+groups:
+  # =============================================================================
+  # GROUPE 1: PERFORMANCE AI ENGINE (SLA < 0.28ms)
+  # =============================================================================
+  - name: ai-engine-performance
+    interval: 10s
+    rules:
+    # Latence prédiction critique
+    - alert: AIEngineHighLatency
+      expr: histogram_quantile(0.95, rate(ai_prediction_duration_seconds_bucket[5m])) > 0.00028
+      for: 30s
+      labels:
+        severity: critical
+        component: ai-engine
+        type: performance
+      annotations:
+        summary: "Latence AI Engine critique > 0.28ms"
+        description: "Latence P95 prédictions: {{ $value }}ms (seuil: 0.28ms)"
+        runbook_url: "https://wiki.rncp-39394.local/runbooks/ai-latency"
+
+    # Throughput dégradé
+    - alert: AIEngineLowThroughput
+      expr: rate(ai_predictions_total[5m]) < 100
+      for: 2m
+      labels:
+        severity: warning
+        component: ai-engine
+        type: performance
+      annotations:
+        summary: "Throughput AI Engine dégradé"
+        description: "Prédictions/sec: {{ $value }} (attendu: >100/sec)"
+
+    # Précision modèle dégradée
+    - alert: AIModelAccuracyDegraded
+      expr: ai_model_accuracy_percentage < 97.6
+      for: 1m
+      labels:
+        severity: critical
+        component: ml-model
+        type: quality
+      annotations:
+        summary: "Précision modèle AI dégradée"
+        description: "Précision actuelle: {{ $value }}% (minimum: 97.6%)"
+
+  # =============================================================================
+  # GROUPE 2: SÉCURITÉ IoT + CYBERATTAQUES
+  # =============================================================================
+  - name: iot-security-alerts
+    interval: 15s
+    rules:
+    # Détection anomalies critiques
+    - alert: IoTAnomalyBurst
+      expr: increase(iot_anomalies_detected_total[1m]) > 50
+      for: 0s  # Alerte immédiate
+      labels:
+        severity: critical
+        component: iot-sensors
+        type: security
+      annotations:
+        summary: "Burst d'anomalies IoT détecté"
+        description: "{{ $value }} anomalies détectées en 1 minute"
+
+    # Attaque DoS suspectée
+    - alert: PotentialDoSAttack
+      expr: rate(iot_requests_total[1m]) > 1000
+      for: 30s
+      labels:
+        severity: critical
+        component: iot-gateway
+        type: security
+      annotations:
+        summary: "Attaque DoS potentielle détectée"
+        description: "Trafic IoT: {{ $value }} req/sec (seuil: 1000/sec)"
+
+    # Échecs authentification SCADA
+    - alert: SCADAAuthFailures
+      expr: increase(scada_auth_failures_total[5m]) > 10
+      for: 0s
+      labels:
+        severity: critical
+        component: scada
+        type: security
+      annotations:
+        summary: "Échecs authentification SCADA critiques"
+        description: "{{ $value }} échecs authentification SCADA en 5min"
+
+    # Intégrité cryptographique compromise
+    - alert: CryptoIntegrityFailure
+      expr: increase(crypto_verification_failures_total[1m]) > 0
+      for: 0s
+      labels:
+        severity: critical
+        component: crypto
+        type: security
+      annotations:
+        summary: "Intégrité cryptographique compromise"
+        description: "{{ $value }} échecs vérification signatures"
+
+  # =============================================================================
+  # GROUPE 3: INFRASTRUCTURE + RESSOURCES
+  # =============================================================================
+  - name: infrastructure-health
+    interval: 30s
+    rules:
+    # Utilisation CPU critique
+    - alert: HighCPUUsage
+      expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+      for: 2m
+      labels:
+        severity: warning
+        component: infrastructure
+        type: resources
+      annotations:
+        summary: "Utilisation CPU élevée"
+        description: "CPU: {{ $value }}% sur {{ $labels.instance }}"
+
+    # Mémoire disponible critique
+    - alert: LowMemoryAvailable
+      expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+      for: 1m
+      labels:
+        severity: critical
+        component: infrastructure
+        type: resources
+      annotations:
+        summary: "Mémoire disponible critique"
+        description: "Mémoire libre: {{ $value }}% sur {{ $labels.instance }}"
+
+    # Espace disque critique
+    - alert: DiskSpaceCritical
+      expr: (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100 < 5
+      for: 1m
+      labels:
+        severity: critical
+        component: infrastructure
+        type: resources
+      annotations:
+        summary: "Espace disque critique"
+        description: "Espace libre: {{ $value }}% sur {{ $labels.device }}"
+
+    # GPU utilisation anormale
+    - alert: GPUUtilizationAnomaly
+      expr: nvidia_gpu_utilization_gpu > 95
+      for: 5m
+      labels:
+        severity: warning
+        component: gpu
+        type: resources
+      annotations:
+        summary: "Utilisation GPU anormalement élevée"
+        description: "GPU: {{ $value }}% sur {{ $labels.gpu }}"
+
+  # =============================================================================
+  # GROUPE 4: SERVICES + DISPONIBILITÉ
+  # =============================================================================
+  - name: services-availability
+    interval: 30s
+    rules:
+    # Service AI Engine indisponible
+    - alert: AIEngineDown
+      expr: up{job="ai-engine"} == 0
+      for: 30s
+      labels:
+        severity: critical
+        component: ai-engine
+        type: availability
+      annotations:
+        summary: "Service AI Engine indisponible"
+        description: "AI Engine sur {{ $labels.instance }} est DOWN"
+
+    # Base de données inaccessible
+    - alert: DatabaseConnectionFailure
+      expr: up{job="postgresql"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        component: database
+        type: availability
+      annotations:
+        summary: "Base de données inaccessible"
+        description: "PostgreSQL sur {{ $labels.instance }} inaccessible"
+
+    # MinIO stockage inaccessible
+    - alert: MinIOStorageDown
+      expr: up{job="minio"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        component: storage
+        type: availability
+      annotations:
+        summary: "Stockage MinIO inaccessible"
+        description: "MinIO sur {{ $labels.instance }} est DOWN"
+
+    # Certificats TLS expiration
+    - alert: TLSCertificateExpiringSoon
+      expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 30
+      for: 1h
+      labels:
+        severity: warning
+        component: tls
+        type: security
+      annotations:
+        summary: "Certificat TLS expire bientôt"
+        description: "Certificat {{ $labels.instance }} expire dans {{ $value }} jours"
+
+  # =============================================================================
+  # GROUPE 5: CONFORMITÉ RNCP 39394 + ISA/IEC 62443
+  # =============================================================================
+  - name: compliance-monitoring
+    interval: 60s
+    rules:
+    # Événements sécurité non tracés
+    - alert: SecurityEventNotLogged
+      expr: increase(security_events_logged_total[10m]) == 0 and increase(security_events_total[10m]) > 0
+      for: 0s
+      labels:
+        severity: critical
+        component: audit
+        type: compliance
+      annotations:
+        summary: "Événements sécurité non tracés - Non conformité"
+        description: "Défaut de traçabilité détecté (exigence ISA/IEC 62443)"
+
+    # Sauvegarde modèles ML échouée
+    - alert: MLModelBackupFailed
+      expr: time() - ml_model_last_backup_timestamp > 86400
+      for: 5m
+      labels:
+        severity: warning
+        component: ml-model
+        type: compliance
+      annotations:
+        summary: "Sauvegarde modèles ML échouée"
+        description: "Dernière sauvegarde: {{ $value }}s ago (max: 24h)"
+
+    # Drift du modèle détecté
+    - alert: MLModelDriftDetected
+      expr: ml_model_drift_score > 0.1
+      for: 10m
+      labels:
+        severity: warning
+        component: ml-model
+        type: quality
+      annotations:
+        summary: "Drift du modèle ML détecté"
+        description: "Score de drift: {{ $value }} (seuil: 0.1)"
+
+  # =============================================================================
+  # GROUPE 6: MÉTRIQUES MÉTIER + KPIs
+  # =============================================================================
+  - name: business-kpis
+    interval: 60s
+    rules:
+    # SLA uptime global
+    - alert: GlobalUptimeSLABreach
+      expr: (sum(up) / count(up)) * 100 < 99.9
+      for: 5m
+      labels:
+        severity: critical
+        component: global
+        type: sla
+      annotations:
+        summary: "SLA Uptime global non respecté"
+        description: "Uptime: {{ $value }}% (SLA: 99.9%)"
+
+    # Coût cloud dépassé
+    - alert: CloudCostThresholdExceeded
+      expr: cloud_cost_daily_euros > 100
+      for: 1h
+      labels:
+        severity: warning
+        component: cost
+        type: business
+      annotations:
+        summary: "Coût cloud quotidien dépassé"
+        description: "Coût aujourd'hui: {{ $value }}€ (budget: 100€/jour)"
+
+    # Volume données IoT anormal
+    - alert: IoTDataVolumeAnomaly
+      expr: abs(rate(iot_data_bytes_total[1h]) - rate(iot_data_bytes_total[1h] offset 24h)) / rate(iot_data_bytes_total[1h] offset 24h) > 0.5
+      for: 30m
+      labels:
+        severity: warning
+        component: iot-data
+        type: anomaly
+      annotations:
+        summary: "Volume données IoT anormal"
+        description: "Variation: {{ $value }}% vs même heure hier"
+
+# =============================================================================
+# RECORDING RULES - MÉTRIQUES AGRÉGÉES
+# =============================================================================
+  - name: recording-rules
+    interval: 30s
+    rules:
+    # SLA global temps réel
+    - record: rncp:sla_uptime_percentage
+      expr: (sum(up) / count(up)) * 100
+
+    # Latence moyenne AI Engine
+    - record: rncp:ai_latency_p95_ms
+      expr: histogram_quantile(0.95, rate(ai_prediction_duration_seconds_bucket[5m])) * 1000
+
+    # Taux d'anomalies par heure
+    - record: rncp:anomaly_rate_per_hour
+      expr: increase(iot_anomalies_detected_total[1h])
+
+    # Précision modèle moyenne mobile
+    - record: rncp:model_accuracy_moving_avg
+      expr: avg_over_time(ai_model_accuracy_percentage[1h])
+
+    # Coût par prédiction
+    - record: rncp:cost_per_prediction_euros
+      expr: cloud_cost_daily_euros / increase(ai_predictions_total[1d])

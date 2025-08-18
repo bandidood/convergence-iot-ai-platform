@@ -1,0 +1,527 @@
+version: '3.8'
+
+# Architecture Zero-Trust avec micro-segmentation réseau
+# Conforme aux exigences de sécurité RNCP 39394 - Semaine 5
+
+x-common-security: &common-security
+  security_opt:
+    - no-new-privileges:true
+  restart: unless-stopped
+  read_only: true
+  cap_drop:
+    - ALL
+
+services:
+  
+  # ═══════════════════════════════════════════════════════════════
+  # 🌐 DMZ PUBLIQUE - Zone démilitarisée pour accès externes
+  # ═══════════════════════════════════════════════════════════════
+  
+  # Traefik - Load Balancer avec WAF intégré
+  traefik:
+    image: traefik:v3.0
+    container_name: zt-traefik-lb
+    <<: *common-security
+    read_only: false  # Traefik a besoin d'écrire les certificats
+    command:
+      - --api.dashboard=true
+      - --api.debug=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=dmz_public
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=admin@station-traffeyere.local
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --log.level=INFO
+      - --accesslog=true
+      - --metrics.prometheus=true
+      - --metrics.prometheus.addentrypointslabels=true
+      - --metrics.prometheus.addserviceslabels=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Dashboard (à protéger en prod)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+      - ./security/traefik:/etc/traefik:ro
+    networks:
+      - dmz_public
+    environment:
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`traefik.station-traffeyere.local`)"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$2y$$10$$..."  # htpasswd généré
+
+  # Nginx + ModSecurity WAF
+  nginx-waf:
+    image: owasp/modsecurity:3-nginx-alpine
+    container_name: zt-nginx-waf
+    <<: *common-security
+    read_only: false  # ModSecurity logs
+    volumes:
+      - ./security/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./security/nginx/modsec:/etc/modsecurity.d:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - dmz_public
+      - app_frontend
+    environment:
+      - MODSEC_RULE_ENGINE=On
+      - MODSEC_REQ_BODY_ACCESS=On
+      - MODSEC_REQ_BODY_LIMIT=13107200
+      - MODSEC_RESP_BODY_ACCESS=On
+      - MODSEC_AUDIT_ENGINE=RelevantOnly
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dmz_public"
+      - "traefik.http.routers.api-gateway.rule=Host(`api.station-traffeyere.local`)"
+      - "traefik.http.routers.api-gateway.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api-gateway.middlewares=waf-headers"
+      - "traefik.http.middlewares.waf-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+
+  # ═══════════════════════════════════════════════════════════════
+  # 🏭 ZONE CAPTEURS IoT - Réseau isolé pour appareils IoT
+  # ═══════════════════════════════════════════════════════════════
+  
+  # Générateur IoT simulé avec authentification mTLS
+  iot-data-generator:
+    image: python:3.11-alpine
+    container_name: zt-iot-generator
+    <<: *common-security
+    read_only: false  # Génération de données
+    working_dir: /app
+    command: ["python", "scripts/iot_data_generator.py"]
+    volumes:
+      - .:/app:ro
+      - iot_data:/app/data
+      - iot_certs:/app/certs:ro
+    networks:
+      - zone_capteurs
+    environment:
+      - TLS_CERT_PATH=/app/certs/iot-client.crt
+      - TLS_KEY_PATH=/app/certs/iot-client.key
+      - CA_CERT_PATH=/app/certs/ca.crt
+      - CRYPTO_ENABLED=true
+      - LORAWAN_AES_KEY=${LORAWAN_AES_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "--cert", "/app/certs/iot-client.crt", "--key", "/app/certs/iot-client.key", "https://localhost:8090/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Edge AI Engine avec isolation
+  edge-ai-engine:
+    image: tensorflow/tensorflow:2.15.0-gpu
+    container_name: zt-edge-ai
+    <<: *common-security
+    read_only: false  # Modèles ML
+    working_dir: /app
+    command: ["python", "scripts/edge_ai_engine.py"]
+    volumes:
+      - .:/app:ro
+      - ai_models:/app/models
+      - ai_certs:/app/certs:ro
+    networks:
+      - zone_capteurs
+      - ai_inference
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - TLS_CERT_PATH=/app/certs/ai-client.crt
+      - TLS_KEY_PATH=/app/certs/ai-client.key
+      - MODEL_ENCRYPTION=true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Zeek IDS pour monitoring réseau IoT
+  zeek-ids:
+    image: zeek/zeek:5.0
+    container_name: zt-zeek-ids
+    <<: *common-security
+    read_only: false  # Logs Zeek
+    network_mode: host  # Nécessaire pour l'analyse de trafic
+    volumes:
+      - zeek_logs:/opt/zeek/logs
+      - ./security/zeek/local.zeek:/opt/zeek/share/zeek/site/local.zeek:ro
+      - ./security/zeek/scripts:/opt/zeek/share/zeek/site/scripts:ro
+    environment:
+      - ZEEK_INTERFACE=docker0
+      - ZEEK_NODE_CFG=/opt/zeek/etc/node.cfg
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ═══════════════════════════════════════════════════════════════
+  # 🔒 CŒUR MÉTIER - Services critiques avec chiffrement TDE
+  # ═══════════════════════════════════════════════════════════════
+  
+  # PostgreSQL avec TDE (Transparent Data Encryption)
+  postgres-tde:
+    image: postgres:15-alpine
+    container_name: zt-postgres-tde
+    <<: *common-security
+    read_only: false  # DB écrit sur disque
+    environment:
+      POSTGRES_DB: station_traffeyere
+      POSTGRES_USER: station_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+      # TDE Configuration
+      POSTGRES_INITDB_ARGS: "--data-checksums --auth-method=scram-sha-256"
+    volumes:
+      - postgres_tde_data:/var/lib/postgresql/data
+      - ./security/postgres/init-tde.sql:/docker-entrypoint-initdb.d/01-tde.sql:ro
+      - postgres_certs:/var/lib/postgresql/certs:ro
+    networks:
+      - core_business
+    secrets:
+      - postgres_password
+      - postgres_tde_key
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U station_user -d station_traffeyere"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis avec authentification et chiffrement
+  redis-secure:
+    image: redis:7.2-alpine
+    container_name: zt-redis-secure
+    <<: *common-security
+    read_only: false  # Redis logs
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --tls-port 6380
+      --port 0
+      --tls-cert-file /tls/redis.crt
+      --tls-key-file /tls/redis.key
+      --tls-ca-cert-file /tls/ca.crt
+      --tls-auth-clients yes
+    volumes:
+      - redis_tde_data:/data
+      - redis_certs:/tls:ro
+    networks:
+      - core_business
+    healthcheck:
+      test: ["CMD", "redis-cli", "--tls", "--cert", "/tls/redis.crt", "--key", "/tls/redis.key", "--cacert", "/tls/ca.crt", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Keycloak pour OAuth 2.0
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: zt-keycloak
+    <<: *common-security
+    read_only: false  # Keycloak DB
+    command: ["start", "--optimized"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-tde:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD_FILE: /run/secrets/keycloak_db_password
+      KC_HOSTNAME: auth.station-traffeyere.local
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/server.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/server.key
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_admin_password
+    volumes:
+      - keycloak_certs:/opt/keycloak/conf:ro
+    networks:
+      - core_business
+      - app_frontend
+    secrets:
+      - keycloak_db_password
+      - keycloak_admin_password
+    depends_on:
+      - postgres-tde
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_frontend"
+      - "traefik.http.routers.keycloak.rule=Host(`auth.station-traffeyere.local`)"
+      - "traefik.http.routers.keycloak.tls.certresolver=letsencrypt"
+
+  # ═══════════════════════════════════════════════════════════════
+  # 📊 MONITORING & OBSERVABILITÉ
+  # ═══════════════════════════════════════════════════════════════
+  
+  # Prometheus avec authentification
+  prometheus-secure:
+    image: prom/prometheus:v2.48.0
+    container_name: zt-prometheus
+    <<: *common-security
+    read_only: false  # Prometheus DB
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.config.file=/etc/prometheus/web-config.yml'
+    volumes:
+      - prometheus_data:/prometheus
+      - ./monitoring/prometheus/prometheus-secure.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/web-config.yml:/etc/prometheus/web-config.yml:ro
+      - prometheus_certs:/etc/prometheus/certs:ro
+    networks:
+      - monitoring
+      - zone_capteurs
+    ports:
+      - "9090:9090"
+
+  # Grafana avec HTTPS obligatoire
+  grafana-secure:
+    image: grafana/grafana:10.2.0
+    container_name: zt-grafana
+    <<: *common-security
+    read_only: false  # Grafana DB
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password
+      GF_SERVER_PROTOCOL: https
+      GF_SERVER_CERT_FILE: /etc/grafana/certs/grafana.crt
+      GF_SERVER_CERT_KEY: /etc/grafana/certs/grafana.key
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: Keycloak
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET_FILE: /run/secrets/grafana_oauth_secret
+      GF_AUTH_GENERIC_OAUTH_SCOPES: openid email profile
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://auth.station-traffeyere.local/realms/station/protocol/openid-connect/auth
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://auth.station-traffeyere.local/realms/station/protocol/openid-connect/token
+      GF_AUTH_GENERIC_OAUTH_API_URL: https://auth.station-traffeyere.local/realms/station/protocol/openid-connect/userinfo
+    volumes:
+      - grafana_secure_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_certs:/etc/grafana/certs:ro
+    networks:
+      - monitoring
+      - app_frontend
+    secrets:
+      - grafana_admin_password
+      - grafana_oauth_secret
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_frontend"
+      - "traefik.http.routers.grafana.rule=Host(`dashboard.station-traffeyere.local`)"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+
+# ═══════════════════════════════════════════════════════════════
+# 🔐 SECRETS MANAGEMENT
+# ═══════════════════════════════════════════════════════════════
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  postgres_tde_key:
+    file: ./secrets/postgres_tde_key.txt
+  keycloak_db_password:
+    file: ./secrets/keycloak_db_password.txt
+  keycloak_admin_password:
+    file: ./secrets/keycloak_admin_password.txt
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password.txt
+  grafana_oauth_secret:
+    file: ./secrets/grafana_oauth_secret.txt
+
+# ═══════════════════════════════════════════════════════════════
+# 💾 VOLUMES PERSISTANTS CHIFFRÉS
+# ═══════════════════════════════════════════════════════════════
+
+volumes:
+  # Traefik
+  traefik_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/certs/traefik
+  
+  # Nginx WAF
+  nginx_logs:
+    driver: local
+  
+  # IoT Zone
+  iot_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/iot
+  iot_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs/iot
+  
+  # AI Engine
+  ai_models:
+    driver: local
+  ai_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs/ai
+  
+  # Zeek IDS
+  zeek_logs:
+    driver: local
+  
+  # Core Business
+  postgres_tde_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres-tde
+  postgres_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs/postgres
+  
+  redis_tde_data:
+    driver: local
+  redis_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs/redis
+  
+  keycloak_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs/keycloak
+  
+  # Monitoring
+  prometheus_data:
+    driver: local
+  prometheus_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs/prometheus
+  
+  grafana_secure_data:
+    driver: local
+  grafana_certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs/grafana
+
+# ═══════════════════════════════════════════════════════════════
+# 🌐 MICRO-SEGMENTATION RÉSEAU ZERO-TRUST
+# ═══════════════════════════════════════════════════════════════
+
+networks:
+  # DMZ publique - Accès externe contrôlé
+  dmz_public:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.1.0.0/24
+          gateway: 10.1.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    labels:
+      zone: "dmz_public"
+      security_level: "medium"
+  
+  # Zone capteurs IoT - Réseau isolé
+  zone_capteurs:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.2.0.0/24
+          gateway: 10.2.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    internal: true  # Pas d'accès Internet direct
+    labels:
+      zone: "zone_capteurs"
+      security_level: "high"
+  
+  # Cœur métier - Services critiques
+  core_business:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.3.0.0/24
+          gateway: 10.3.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+    internal: true  # Isolation complète
+    labels:
+      zone: "core_business"
+      security_level: "critical"
+  
+  # Frontend applications
+  app_frontend:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.4.0.0/24
+          gateway: 10.4.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+    labels:
+      zone: "app_frontend"
+      security_level: "medium"
+  
+  # IA/ML inference
+  ai_inference:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.5.0.0/24
+          gateway: 10.5.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+    internal: true
+    labels:
+      zone: "ai_inference"
+      security_level: "high"
+  
+  # Monitoring et observabilité
+  monitoring:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.6.0.0/24
+          gateway: 10.6.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+    labels:
+      zone: "monitoring"
+      security_level: "medium"

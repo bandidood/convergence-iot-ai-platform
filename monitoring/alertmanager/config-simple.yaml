@@ -1,0 +1,98 @@
+# Configuration Alertmanager simplifiée - RNCP 39394
+# Compatible avec Alertmanager v0.26.0
+
+global:
+  smtp_smarthost: 'smtp.company.com:587'
+  smtp_from: 'alertes-rncp39394@company.com'
+  smtp_auth_username: 'alert-service@company.com'
+  smtp_auth_password_file: '/run/secrets/alertmanager_smtp_password'
+  smtp_require_tls: true
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default-alerts'
+  
+  routes:
+  # Alertes critiques
+  - match:
+      severity: critical
+    receiver: 'critical-alerts'
+    group_wait: 0s
+    group_interval: 1m
+    repeat_interval: 30m
+    
+  # Alertes warning
+  - match:
+      severity: warning
+    receiver: 'warning-alerts'
+    group_wait: 2m
+    group_interval: 10m
+    repeat_interval: 2h
+
+receivers:
+# Récepteur par défaut
+- name: 'default-alerts'
+  email_configs:
+  - to: 'admin@company.com'
+    subject: '[RNCP 39394] Alerte - {{ .GroupLabels.alertname }}'
+    body: |
+      Alerte détectée sur la plateforme RNCP 39394
+      
+      Détails:
+      {{ range .Alerts }}
+      - {{ .Labels.alertname }}: {{ .Annotations.summary }}
+      {{ end }}
+
+# Alertes critiques
+- name: 'critical-alerts'
+  email_configs:
+  - to: 'admin@company.com, ops@company.com'
+    subject: '🚨 [CRITIQUE] RNCP 39394 - {{ .GroupLabels.alertname }}'
+    body: |
+      ⚠️ ALERTE CRITIQUE - Intervention immédiate requise
+      
+      Plateforme: RNCP 39394 IoT AI Station Traffeyère
+      
+      Détails des alertes:
+      {{ range .Alerts }}
+      - Alerte: {{ .Labels.alertname }}
+      - Composant: {{ .Labels.component }}
+      - Sévérité: {{ .Labels.severity }}
+      - Description: {{ .Annotations.summary }}
+      - Instance: {{ .Labels.instance }}
+      - Début: {{ .StartsAt }}
+      {{ if .Annotations.runbook_url }}
+      - Runbook: {{ .Annotations.runbook_url }}
+      {{ end }}
+      ---
+      {{ end }}
+      
+      Actions requises:
+      1. Vérifier le dashboard Grafana
+      2. Consulter les logs Splunk
+      3. Déclencher la procédure d'escalade si nécessaire
+      
+      Alerte générée par Prometheus - RNCP 39394
+
+# Alertes warning
+- name: 'warning-alerts'
+  email_configs:
+  - to: 'admin@company.com'
+    subject: '⚠️ [WARNING] RNCP 39394 - {{ .GroupLabels.alertname }}'
+    body: |
+      Alerte Warning - RNCP 39394
+      
+      {{ range .Alerts }}
+      - {{ .Labels.alertname }}: {{ .Annotations.summary }}
+      {{ end }}
+
+inhibit_rules:
+# Supprimer les alertes warning si critique active
+- source_match:
+    severity: 'critical'
+  target_match:
+    severity: 'warning'
+  equal: ['alertname', 'cluster', 'service']
