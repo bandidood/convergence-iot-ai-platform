@@ -13,7 +13,6 @@ Système intelligent d'optimisation énergétique:
 """
 
 import asyncio
-import numpy as np
 import json
 import time
 import random
@@ -233,7 +232,7 @@ class GeneticAlgorithmOptimizer:
                 
                 efficiency_scores.append(efficiency)
         
-        return np.mean(efficiency_scores) if efficiency_scores else 0.5
+        return sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0.5
     
     def _calculate_quality_impact(self, individual: Dict[str, float],
                                  parameters: List[ProcessParameter]) -> float:
@@ -251,7 +250,7 @@ class GeneticAlgorithmOptimizer:
                 quality_impact = 1 - abs(normalized_value - 0.5) * param.quality_sensitivity
                 quality_impacts.append(max(0, quality_impact))
         
-        return np.mean(quality_impacts) if quality_impacts else 0.5
+        return sum(quality_impacts) / len(quality_impacts) if quality_impacts else 0.5
     
     def _calculate_environmental_impact(self, energy_consumption: float) -> float:
         """Calcul score environnemental"""
@@ -267,7 +266,9 @@ class GeneticAlgorithmOptimizer:
         new_population = []
         
         # Élitisme - conservation des meilleurs individus
-        elite_indices = np.argsort(fitness_scores)[-self.elite_size:]
+        fitness_with_indices = [(score, idx) for idx, score in enumerate(fitness_scores)]
+        fitness_with_indices.sort(key=lambda x: x[0])
+        elite_indices = [idx for _, idx in fitness_with_indices[-self.elite_size:]]
         for idx in elite_indices:
             new_population.append(population[idx].copy())
         
@@ -298,7 +299,8 @@ class GeneticAlgorithmOptimizer:
         """Sélection par tournoi"""
         tournament_indices = random.sample(range(len(population)), tournament_size)
         tournament_fitness = [fitness_scores[i] for i in tournament_indices]
-        winner_idx = tournament_indices[np.argmax(tournament_fitness)]
+        best_fitness = max(tournament_fitness)
+        winner_idx = tournament_indices[tournament_fitness.index(best_fitness)]
         return population[winner_idx].copy()
     
     def _crossover(self, parent1: Dict[str, float], parent2: Dict[str, float]) -> Tuple[Dict[str, float], Dict[str, float]]:
@@ -828,12 +830,17 @@ class EnergyOptimizationSystem:
         
         # Analyse temporelle
         energy_consumption_trend = [state.energy_consumption_total for state in simulation_states]
-        avg_consumption = np.mean(energy_consumption_trend)
-        consumption_stability = 1 - (np.std(energy_consumption_trend) / avg_consumption)
+        avg_consumption = sum(energy_consumption_trend) / len(energy_consumption_trend)
+        
+        # Calcul écart-type manuel
+        variance = sum((x - avg_consumption)**2 for x in energy_consumption_trend) / len(energy_consumption_trend)
+        std_consumption = variance**0.5
+        consumption_stability = 1 - (std_consumption / avg_consumption)
         
         # Analyse performance
         performance_metrics = [state.performance_metrics for state in simulation_states]
-        avg_efficiency = np.mean([metrics.get('energy_efficiency', 0.8) for metrics in performance_metrics])
+        efficiency_values = [metrics.get('energy_efficiency', 0.8) for metrics in performance_metrics]
+        avg_efficiency = sum(efficiency_values) / len(efficiency_values)
         
         # Calcul économies détaillées
         base_annual_cost = sum(profile.base_consumption_kw * profile.operating_hours_day * 365 * profile.energy_cost_per_kwh 
@@ -878,9 +885,9 @@ class EnergyOptimizationSystem:
             'current_solution': latest_optimization['solution'],
             'current_analysis': latest_optimization['analysis'],
             'historical_performance': {
-                'avg_annual_savings': np.mean(historical_savings),
+                'avg_annual_savings': sum(historical_savings) / len(historical_savings),
                 'max_annual_savings': max(historical_savings),
-                'avg_fitness_score': np.mean(historical_fitness),
+                'avg_fitness_score': sum(historical_fitness) / len(historical_fitness),
                 'optimization_trend': 'improving' if len(historical_fitness) > 1 and historical_fitness[-1] > historical_fitness[0] else 'stable'
             },
             'system_recommendations': self._generate_recommendations(latest_optimization['analysis'])

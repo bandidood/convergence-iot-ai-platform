@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  xia-demo:
+    image: nginx:alpine
+    container_name: xia-voice-demo
+    ports:
+      - "3000:80"
+    volumes:
+      - ./demo:/usr/share/nginx/html:ro
+    networks:
+      - xia-network
+      
+  postgres-demo:
+    image: postgres:15-alpine
+    container_name: xia-postgres
+    environment:
+      POSTGRES_DB: xia_voice
+      POSTGRES_USER: xia_demo
+      POSTGRES_PASSWORD: demo123
+    ports:
+      - "5433:5432"
+    networks:
+      - xia-network
+
+networks:
+  xia-network:
+    driver: bridge

@@ -13,8 +13,6 @@ Service intelligent de maintenance prédictive:
 """
 
 import asyncio
-import numpy as np
-import pandas as pd
 import json
 import time
 import pickle
@@ -157,7 +155,7 @@ class AdvancedLSTMPredictor:
             }
         }
     
-    def train_models(self, equipment_data: List[Equipment]) -> Dict[str, Any]:
+    async def train_models(self, equipment_data: List[Equipment]) -> Dict[str, Any]:
         """Entraînement des modèles LSTM par type d'équipement"""
         logger.info("🧠 Entraînement modèles LSTM de maintenance prédictive")
         
@@ -231,7 +229,7 @@ class AdvancedLSTMPredictor:
         
         return prediction
     
-    def _extract_features(self, sensor_data: List[Dict]) -> np.ndarray:
+    def _extract_features(self, sensor_data: List[Dict]) -> List[float]:
         """Extraction des caractéristiques des données capteurs"""
         # Simulation extraction features (24 features standard)
         features = []
@@ -239,21 +237,24 @@ class AdvancedLSTMPredictor:
         if sensor_data:
             # Statistiques temporelles
             values = [d.get('value', 0) for d in sensor_data[-168:]]  # 7 derniers jours
-            features.extend([
-                np.mean(values) if values else 0,
-                np.std(values) if values else 0,
-                np.max(values) if values else 0,
-                np.min(values) if values else 0
-            ])
+            if values:
+                features.extend([
+                    sum(values) / len(values),  # moyenne
+                    (sum((x - sum(values)/len(values))**2 for x in values) / len(values))**0.5,  # écart-type
+                    max(values),  # max
+                    min(values)   # min
+                ])
+            else:
+                features.extend([0, 0, 0, 0])
         else:
             features.extend([0, 0, 0, 0])
         
         # Features supplémentaires simulées
         features.extend([random.uniform(0, 1) for _ in range(20)])
         
-        return np.array(features)
+        return features
     
-    def _simulate_prediction(self, equipment: Equipment, features: np.ndarray) -> float:
+    def _simulate_prediction(self, equipment: Equipment, features: List[float]) -> float:
         """Simulation prédiction LSTM"""
         # Facteurs influençant la probabilité de panne
         base_probability = 0.05  # 5% de base
@@ -272,7 +273,7 @@ class AdvancedLSTMPredictor:
         maintenance_factor = min(days_since_maint / 365, 0.6)
         
         # Features des capteurs (simulation)
-        sensor_factor = min(np.mean(features) * 0.3, 0.4)
+        sensor_factor = min((sum(features) / len(features)) * 0.3, 0.4) if features else 0
         
         # Calcul probabilité finale
         probability = base_probability + age_factor + criticality_factor + maintenance_factor + sensor_factor
@@ -280,7 +281,7 @@ class AdvancedLSTMPredictor:
         
         return round(probability, 3)
     
-    def _predict_failure_type(self, equipment: Equipment, features: np.ndarray) -> FailureType:
+    def _predict_failure_type(self, equipment: Equipment, features: List[float]) -> FailureType:
         """Prédiction du type de panne le plus probable"""
         # Mapping équipement -> types de pannes probables
         equipment_failure_mapping = {

@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xia - Dashboard Assistant Vocal IA</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body { 
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: #0f1419;
+            color: #e6edf3;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Layout principal */
+        .dashboard {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "sidebar main controls";
+            grid-template-rows: 70px 1fr;
+            grid-template-columns: 250px 1fr 320px;
+            height: 100vh;
+            gap: 1px;
+            background: #21262d;
+        }
+        
+        /* En-tête */
+        .header {
+            grid-area: header;
+            background: #161b22;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            border-bottom: 1px solid #30363d;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #58a6ff, #1f6feb);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #58a6ff;
+        }
+        
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #21262d;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: blink 2s infinite;
+        }
+        
+        .status-dot.listening {
+            background: #f85149;
+            animation: pulse-fast 0.8s infinite;
+        }
+        
+        .system-time {
+            font-family: 'Monaco', 'Consolas', monospace;
+            color: #7d8590;
+        }
+        
+        /* Barre latérale */
+        .sidebar {
+            grid-area: sidebar;
+            background: #161b22;
+            padding: 1.5rem;
+            border-right: 1px solid #30363d;
+        }
+        
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+        
+        .nav-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #7d8590;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: #21262d;
+            border-color: #30363d;
+        }
+        
+        .nav-item.active {
+            background: rgba(88, 166, 255, 0.1);
+            border-color: #58a6ff;
+            color: #58a6ff;
+        }
+        
+        .nav-icon {
+            width: 16px;
+            text-align: center;
+        }
+        
+        /* Zone principale */
+        .main-content {
+            grid-area: main;
+            background: #0d1117;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-areas:
+                "chat metrics"
+                "chat status";
+            grid-template-rows: 1fr 300px;
+            grid-template-columns: 1fr 300px;
+            gap: 1rem;
+            height: 100%;
+        }
+        
+        /* Chat panel */
+        .chat-panel {
+            grid-area: chat;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            min-height: 300px;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message.assistant {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            line-height: 1.4;
+        }
+        
+        .message.user .message-bubble {
+            background: #1f6feb;
+            color: white;
+        }
+        
+        .message.assistant .message-bubble {
+            background: #21262d;
+            border: 1px solid #30363d;
+        }
+        
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .message.user .message-avatar {
+            background: #1f6feb;
+            order: 2;
+        }
+        
+        .message.assistant .message-avatar {
+            background: #238636;
+        }
+        
+        /* Métriques panel */
+        .metrics-panel {
+            grid-area: metrics;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #30363d;
+        }
+        
+        .metric-card {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #58a6ff;
+            margin-bottom: 0.25rem;
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            color: #7d8590;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Status panel */
+        .status-panel {
+            grid-area: status;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .sensor-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+        }
+        
+        .sensor-name {
+            font-weight: 500;
+        }
+        
+        .sensor-value {
+            color: #3fb950;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-weight: 600;
+        }
+        
+        .sensor-value.warning {
+            color: #d29922;
+        }
+        
+        .sensor-value.critical {
+            color: #f85149;
+        }
+        
+        /* Contrôles vocaux */
+        .voice-controls {
+            grid-area: controls;
+            background: #161b22;
+            border-left: 1px solid #30363d;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .voice-visualizer {
+            height: 100px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .waveform {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            height: 60px;
+        }
+        
+        .wave-bar {
+            width: 3px;
+            background: #58a6ff;
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+        
+        .wave-bar.active {
+            animation: wave 0.6s ease-in-out infinite alternate;
+        }
+        
+        @keyframes wave {
+            0% { height: 10px; }
+            100% { height: 50px; }
+        }
+        
+        .voice-button {
+            background: linear-gradient(135deg, #f85149, #da3633);
+            border: none;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(248, 81, 73, 0.3);
+            align-self: center;
+        }
+        
+        .voice-button:hover { 
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(248, 81, 73, 0.4);
+        }
+        
+        .voice-button.listening {
+            background: linear-gradient(135deg, #3fb950, #2ea043);
+            animation: pulse 1.5s infinite;
+            box-shadow: 0 4px 20px rgba(63, 185, 80, 0.4);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 4px 20px rgba(63, 185, 80, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 8px 30px rgba(63, 185, 80, 0.6); }
+            100% { transform: scale(1); box-shadow: 0 4px 20px rgba(63, 185, 80, 0.4); }
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        @keyframes pulse-fast {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .voice-status {
+            text-align: center;
+            padding: 1rem;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .voice-status-text {
+            font-size: 0.9rem;
+            line-height: 1.3;
+        }
+        
+        .quick-commands {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .command-btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #e6edf3;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+        
+        .command-btn:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+            color: #58a6ff;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-areas: 
+                    "header header"
+                    "main controls";
+                grid-template-columns: 1fr 320px;
+            }
+            .sidebar { display: none; }
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-areas: 
+                    "header"
+                    "controls"
+                    "main";
+                grid-template-columns: 1fr;
+                grid-template-rows: 70px auto 1fr;
+            }
+            .voice-controls {
+                border-left: none;
+                border-bottom: 1px solid #30363d;
+                flex-direction: row;
+                align-items: center;
+                padding: 1rem;
+            }
+            .content-grid {
+                grid-template-areas: "chat" "metrics" "status";
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto auto;
+            }
+        }
+        
+        /* Animations personnalisées */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #7d8590;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        
+        /* Scrollbar personnalisée */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- En-tête -->        
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🎙️</div>
+                <div class="logo-text">Xia Assistant</div>
+            </div>
+            <div class="header-status">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="headerStatus">Prêt</span>
+                </div>
+                <div class="system-time" id="systemTime">22/08/2025 14:52</div>
+            </div>
+        </header>
+        
+        <!-- Barre latérale -->        
+        <aside class="sidebar">
+            <div class="nav-section">
+                <div class="nav-title">Station Traffeyère</div>
+                <div class="nav-item active">
+                    <div class="nav-icon">🏠</div>
+                    <div>Tableau de bord</div>
+                </div>
+                <div class="nav-item">
+                    <div class="nav-icon">📊</div>
+                    <div>Analytique</div>
+                </div>
+                <div class="nav-item">
+                    <div class="nav-icon">🔔</div>
+                    <div>Alertes</div>
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Contrôles IoT</div>
+                <div class="nav-item">
+                    <div class="nav-icon">🔄</div>
+                    <div>Statut capteurs</div>
+                </div>
+                <div class="nav-item">
+                    <div class="nav-icon">🧪</div>
+                    <div>Qualité eau</div>
+                </div>
+                <div class="nav-item">
+                    <div class="nav-icon">⚡</div>
+                    <div>Consommation</div>
+                </div>
+                <div class="nav-item">
+                    <div class="nav-icon">🌊</div>
+                    <div>Débit & pression</div>
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Outils</div>
+                <div class="nav-item">
+                    <div class="nav-icon">🔍</div>
+                    <div>Recherche</div>
+                </div>
+                <div class="nav-item">
+                    <div class="nav-icon">🔧</div>
+                    <div>Maintenance</div>
+                </div>
+                <div class="nav-item">
+                    <div class="nav-icon">👤</div>
+                    <div>Préférences</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: auto; padding-top: 2rem; font-size: 0.7rem; color: #7d8590;">
+                <p>Station Traffeyère IoT AI Platform</p>
+                <p>RNCP 39394 - Johann LEBEL</p>
+            </div>
+        </aside>
+        
+        <!-- Contenu principal -->        
+        <main class="main-content">
+            <div class="content-grid">
+                <!-- Panel chat -->                
+                <div class="chat-panel">
+                    <div class="chat-header">
+                        <span>💬</span> Conversation avec Xia
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message assistant fade-in">
+                            <div class="message-avatar">🤖</div>
+                            <div class="message-bubble">
+                                Bonjour et bienvenue sur le tableau de bord de Xia, l'assistant vocal IA de la Station Traffeyère. Comment puis-je vous aider aujourd'hui ?
+                            </div>
+                        </div>
+                        <!-- Les messages de conversation apparaîtront ici dynamiquement -->
+                    </div>
+                </div>
+                
+                <!-- Panel métriques -->                
+                <div class="metrics-panel">
+                    <div class="panel-header">
+                        <span>📈</span> Métriques IA
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">98.7%</div>
+                        <div class="metric-label">Précision NLP</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">145 ms</div>
+                        <div class="metric-label">Latence moyenne</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">127/127</div>
+                        <div class="metric-label">Capteurs connectés</div>
+                    </div>
+                </div>
+                
+                <!-- Panel statut capteurs -->                
+                <div class="status-panel">
+                    <div class="panel-header">
+                        <span>🔄</span> Statut capteurs
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-name">pH Eau</div>
+                        <div class="sensor-value">7.2</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-name">Température</div>
+                        <div class="sensor-value">18°C</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-name">Débit</div>
+                        <div class="sensor-value">450 L/h</div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-name">Turbidité</div>
+                        <div class="sensor-value warning">0.9 NTU</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Contrôles vocaux -->        
+        <aside class="voice-controls">
+            <div class="voice-visualizer">
+                <div class="waveform" id="waveform">
+                    <!-- Les barres de forme d'onde sont générées dynamiquement -->
+                </div>
+            </div>
+            
+            <button class="voice-button" id="voiceBtn" onclick="toggleVoice()">
+                🎤
+            </button>
+            
+            <div class="voice-status">
+                <strong>Statut vocal</strong>
+                <div class="voice-status-text" id="statusText">Prêt à écouter - Cliquez sur le microphone</div>
+            </div>
+            
+            <div class="quick-commands">
+                <div class="panel-header">
+                    <span>⚡</span> Commandes rapides
+                </div>
+                <button class="command-btn" onclick="runQuickCommand('statut')">Statut des capteurs</button>
+                <button class="command-btn" onclick="runQuickCommand('alertes')">Alertes critiques</button>
+                <button class="command-btn" onclick="runQuickCommand('analyse')">Analyse prédictive</button>
+                <button class="command-btn" onclick="runQuickCommand('digital')">Digital Twin</button>
+                <button class="command-btn" onclick="runQuickCommand('urgence')">Protocole d'urgence</button>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isListening = false;
+        let waveformBars = [];
+        let waveformAnimationId = null;
+        
+        // Initialisation au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeWaveform();
+            updateSystemTime();
+            setInterval(updateSystemTime, 1000);
+            
+            // Simulation des métriques en temps réel
+            setInterval(updateMetrics, 3000);
+            
+            // Initialiser la reconnaissance vocale
+            initializeSpeechRecognition();
+        });
+        
+        function initializeSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'fr-FR';
+            } else if ('SpeechRecognition' in window) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'fr-FR';
+            }
+            
+            if (recognition) {
+                setupSpeechEvents();
+            }
+        }
+        
+        function setupSpeechEvents() {
+            recognition.onresult = function(event) {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                
+                if (event.results[event.results.length - 1].isFinal) {
+                    addUserMessage(transcript);
+                    updateStatus('🧠 Traitement de votre demande...');
+                    processVoiceCommand(transcript);
+                } else {
+                    updateStatus('📝 ' + transcript);
+                }
+            };
+
+            recognition.onerror = function(event) {
+                updateStatus('❌ Erreur: ' + event.error);
+                updateHeaderStatus('Erreur', false);
+                stopListening();
+            };
+
+            recognition.onend = function() {
+                stopListening();
+            };
+        }
+        
+        function initializeWaveform() {
+            const waveform = document.getElementById('waveform');
+            waveform.innerHTML = '';
+            waveformBars = [];
+            
+            for (let i = 0; i < 30; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'wave-bar';
+                bar.style.height = '10px';
+                waveform.appendChild(bar);
+                waveformBars.push(bar);
+            }
+        }
+        
+        function animateWaveform() {
+            if (!isListening) return;
+            
+            waveformBars.forEach((bar, index) => {
+                const height = Math.random() * 40 + 10;
+                bar.style.height = height + 'px';
+                bar.classList.add('active');
+            });
+            
+            waveformAnimationId = setTimeout(animateWaveform, 100);
+        }
+        
+        function stopWaveformAnimation() {
+            if (waveformAnimationId) {
+                clearTimeout(waveformAnimationId);
+                waveformAnimationId = null;
+            }
+            
+            waveformBars.forEach(bar => {
+                bar.style.height = '10px';
+                bar.classList.remove('active');
+            });
+        }
+        
+        function updateSystemTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            document.getElementById('systemTime').textContent = timeString;
+        }
+        
+        function updateMetrics() {
+            // Simulation de métriques dynamiques
+            const precisionElement = document.querySelector('.metric-card:nth-child(2) .metric-value');
+            const latencyElement = document.querySelector('.metric-card:nth-child(3) .metric-value');
+            
+            const precision = (97.5 + Math.random() * 2).toFixed(1);
+            const latency = Math.floor(140 + Math.random() * 20);
+            
+            precisionElement.textContent = precision + '%';
+            latencyElement.textContent = latency + ' ms';
+        }
+        
+        function updateHeaderStatus(status, isActive = true) {
+            const statusDot = document.getElementById('statusDot');
+            const headerStatus = document.getElementById('headerStatus');
+            
+            if (isActive) {
+                statusDot.classList.add('listening');
+                headerStatus.textContent = status;
+            } else {
+                statusDot.classList.remove('listening');
+                headerStatus.textContent = status;
+            }
+        }
+
+        function toggleVoice() {
+            if (!recognition) {
+                updateStatus('❌ Reconnaissance vocale non supportée par ce navigateur');
+                return;
+            }
+
+            if (!isListening) {
+                startListening();
+            } else {
+                stopListening();
+            }
+        }
+
+        function startListening() {
+            isListening = true;
+            const btn = document.getElementById('voiceBtn');
+            btn.classList.add('listening');
+            updateStatus('🎤 Écoute en cours... Parlez maintenant');
+            updateHeaderStatus('En écoute', true);
+            animateWaveform();
+
+            try {
+                recognition.start();
+            } catch (error) {
+                updateStatus('❌ Erreur lors du démarrage: ' + error.message);
+                stopListening();
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            const btn = document.getElementById('voiceBtn');
+            btn.classList.remove('listening');
+            updateHeaderStatus('Prêt', false);
+            stopWaveformAnimation();
+            
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    console.log('Erreur arrêt reconnaissance:', error);
+                }
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusText').innerHTML = message;
+        }
+        
+        function addUserMessage(text) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user fade-in';
+            messageDiv.innerHTML = `
+                <div class="message-avatar">👤</div>
+                <div class="message-bubble">${text}</div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function addAssistantMessage(text) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // Ajouter indicateur de frappe
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant fade-in';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-bubble">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Remplacer par le vrai message après un délai
+            setTimeout(() => {
+                typingDiv.remove();
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant fade-in';
+                messageDiv.innerHTML = `
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-bubble">${text}</div>
+                `;
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 1500);
+        }
+
+        function processVoiceCommand(command) {
+            updateStatus('🧠 Analyse NLP en cours...');
+            
+            setTimeout(() => {
+                const response = generateResponse(command.toLowerCase());
+                updateStatus('✅ Commande traitée');
+                addAssistantMessage(response);
+                
+                // Synthèse vocale
+                if ('speechSynthesis' in window) {
+                    let utterance = new SpeechSynthesisUtterance(response);
+                    utterance.lang = 'fr-FR';
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1.0;
+                    speechSynthesis.speak(utterance);
+                }
+                
+                // Retour au statut prêt
+                setTimeout(() => {
+                    updateStatus('Prêt à écouter - Cliquez sur le microphone');
+                }, 2000);
+            }, 800);
+        }
+        
+        function runQuickCommand(commandType) {
+            let commandText = '';
+            switch(commandType) {
+                case 'statut':
+                    commandText = 'Statut des capteurs';
+                    break;
+                case 'alertes':
+                    commandText = 'Alertes critiques';
+                    break;
+                case 'analyse':
+                    commandText = 'Analyse prédictive';
+                    break;
+                case 'digital':
+                    commandText = 'Digital Twin';
+                    break;
+                case 'urgence':
+                    commandText = 'Protocole d\'urgence';
+                    break;
+            }
+            
+            addUserMessage(commandText);
+            processVoiceCommand(commandText);
+        }
+
+        function generateResponse(command) {
+            // Simulation réponses intelligentes IoT Station Traffeyère
+            if (command.includes('bonjour') || command.includes('salut') || command.includes('xia')) {
+                return "Bonjour ! Je suis Xia, votre assistant vocal pour la Station Traffeyère. Comment puis-je vous aider aujourd'hui ?";
+            } else if (command.includes('statut') || command.includes('capteur')) {
+                return "📊 Statut des capteurs IoT :<br>• pH : 7.2 (Normal)<br>• Température : 18°C (Optimal)<br>• Débit : 450 L/h (Stable)<br>• Turbidité : 0.9 NTU (Surveillance)";
+            } else if (command.includes('alerte') || command.includes('critique')) {
+                return "🔔 État des alertes :<br>• Aucune alerte critique<br>• 2 alertes d'information :<br>  - Maintenance préventive pompe 3<br>  - Calibrage capteur pH prévu";
+            } else if (command.includes('analyse') || command.includes('prédiction') || command.includes('prédictive')) {
+                return "🧠 Analyse prédictive ML :<br>• Consommation énergétique stable<br>• Optimisation possible : 5% avec ajustement débit<br>• Prédiction qualité eau : Excellente pour 72h";
+            } else if (command.includes('jumeau') || command.includes('3d') || command.includes('unity') || command.includes('digital')) {
+                return "🎮 Digital Twin Unity 3D :<br>• Ouverture de la visualisation 3D<br>• Navigation vers station de pompage<br>• Mode temps réel activé<br>• Contrôles vocaux synchronisés";
+            } else if (command.includes('urgence') || command.includes('protocole') || command.includes('alerte rouge')) {
+                return "🚨 PROTOCOLE D'URGENCE ACTIVÉ :<br>• Équipe technique notifiée<br>• Procédures sécurité en cours<br>• Systèmes critiques sécurisés<br>• Communication établie";
+            } else if (command.includes('aide') || command.includes('help') || command.includes('commande')) {
+                return "💡 Commandes disponibles :<br>• Statut des capteurs<br>• Alertes critiques<br>• Analyse prédictive<br>• Digital Twin<br>• Protocole d'urgence";
+            } else if (command.includes('performance') || command.includes('métriques')) {
+                return "⚡ Performance système :<br>• Latence : 145ms (Excellent)<br>• Précision NLP : 98.7%<br>• Disponibilité : 99.9%<br>• Capteurs connectés : 127/127";
+            } else if (command.includes('sécurité') || command.includes('conformité')) {
+                return "🔐 Sécurité et conformité :<br>• ISA/IEC 62443 SL3+ : ✅<br>• Conformité NIS2 : ✅<br>• Protection GDPR : ✅<br>• Architecture Zero Trust : Activée";
+            } else {
+                return "✨ Commande analysée avec succès. Fonctionnalité en cours d'implémentation dans le système complet de la Station Traffeyère.";
+            }
+        }
+        
+        function toggleVoice() {
+            if (!recognition) {
+                updateStatus('❌ Reconnaissance vocale non supportée par ce navigateur');
+                return;
+            }
+
+            if (!isListening) {
+                startListening();
+            } else {
+                stopListening();
+            }
+        }
+
+        function startListening() {
+            isListening = true;
+            const btn = document.getElementById('voiceBtn');
+            btn.classList.add('listening');
+            updateStatus('🎤 Écoute en cours... Parlez maintenant');
+            updateHeaderStatus('En écoute', true);
+            animateWaveform();
+
+            try {
+                recognition.start();
+            } catch (error) {
+                updateStatus('❌ Erreur lors du démarrage: ' + error.message);
+                stopListening();
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            const btn = document.getElementById('voiceBtn');
+            btn.classList.remove('listening');
+            updateHeaderStatus('Prêt', false);
+            stopWaveformAnimation();
+            
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    console.log('Erreur arrêt reconnaissance:', error);
+                }
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusText').innerHTML = message;
+        }
+        
+        // Message de bienvenue au chargement
+        setTimeout(() => {
+            updateStatus('🎙️ Xia est prêt ! Cliquez sur le microphone pour commencer');
+        }, 3000);
+        
+        // Navigation interactive
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // Retirer la classe active de tous les éléments
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                // Ajouter la classe active à l'élément cliqué
+                this.classList.add('active');
+                
+                // Simulation de navigation
+                const section = this.textContent.trim();
+                addAssistantMessage(`Navigation vers la section "${section}". Fonctionnalité en cours d'implémentation.`);
+            });
+        });
+    </script>
+</body>
+</html>
