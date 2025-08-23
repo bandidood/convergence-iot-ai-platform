@@ -46,7 +46,7 @@ Projet couvrant **92% des compétences** requises pour validation Expert en Syst
 #### Installation Rapide
 ```bash
 # Clone repository
-git clone https://github.com/your-username/station-traffeyere-iot-ai-platform.git
+git clone https://github.com/bandidood/convergence-iot-ai-platform.git
 cd station-traffeyere-iot-ai-platform
 
 # Configuration environnement
@@ -113,10 +113,11 @@ make clean         # Arrêter et nettoyer
 
 ### 📞 **Support & Contact**
 - **Auteur** : Johann LEBEL
-- **Email** : johann.lebel@expert-cybersecurity.fr
-- **LinkedIn** : [johann-lebel](https://linkedin.com/in/johann-lebel)
+- **Email** : johann69lebel@gmai.com
+- **LinkedIn** : [johann-lebel](https://linkedin.com/in/johannlebel)
 - **Documentation** : [Wiki Projet](./documentation/)
 
 ---
 **🔗 Projet RNCP 39394 - Expert en Systèmes d'Information et Sécurité**  
 **🎯 Validation Excellence Académique + Impact Opérationnel**
+
