@@ -1,0 +1,58 @@
+# =============================================================================
+# TRIVY SECURITY SCANNER IGNORE FILE - RNCP 39394
+# =============================================================================
+# This file contains CVEs that are:
+# 1. False positives for our use case
+# 2. Not applicable to our runtime environment
+# 3. Already mitigated by our security controls
+# =============================================================================
+
+# Alpine Linux base image - These are often false positives
+# CVE-2023-5678  # Example: Not applicable to Alpine musl libc
+
+# Python base vulnerabilities - Not applicable to our usage
+# CVE-2023-40217  # Python SSL - We use our own TLS termination
+
+# TensorFlow vulnerabilities that don't affect Edge AI usage
+# CVE-2023-25659  # TensorFlow - Only affects serving mode, not inference
+
+# Development dependencies - Not present in production
+CVE-2023-5752   # pip - Development only, removed in production stage
+
+# Documentation and examples - Not in production
+CVE-2022-40897  # setuptools - Build time only
+
+# =============================================================================
+# COMMENTED EXAMPLES - Remove comments to ignore specific CVEs
+# =============================================================================
+
+# High severity but false positive examples:
+# CVE-2023-1234  # Description why this is safe in our context
+
+# Medium severity acceptable risks:
+# CVE-2023-5678  # Acceptable business risk - documented in security assessment
+
+# =============================================================================
+# IGNORE PATTERNS
+# =============================================================================
+
+# Ignore vulnerabilities in test files
+**/tests/**
+**/test_*
+**/*_test.py
+
+# Ignore vulnerabilities in documentation
+**/docs/**
+**/documentation/**
+**/*.md
+**/*.rst
+
+# Ignore development configuration
+**/dev/**
+**/development/**
+docker-compose.dev.yml
+docker-compose.test.yml
+
+# =============================================================================
+# END OF IGNORE FILE
+# =============================================================================

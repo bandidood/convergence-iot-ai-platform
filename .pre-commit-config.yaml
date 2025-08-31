@@ -1,0 +1,195 @@
+# =============================================================================
+# PRE-COMMIT SECURITY HOOKS - RNCP 39394 IoT/AI Platform
+# Expert en Systèmes d'Information et Sécurité
+# =============================================================================
+
+repos:
+  # =============================================================================
+  # GENERAL CODE QUALITY AND SECURITY
+  # =============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-xml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: detect-private-key
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # =============================================================================
+  # SECRETS DETECTION
+  # =============================================================================
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+              .*/tests/.*|
+              .*/test_.*\.py|
+              .*\.lock|
+              package-lock\.json|
+              poetry\.lock
+          )$
+
+  # =============================================================================
+  # PYTHON SECURITY SCANNING
+  # =============================================================================
+  - repo: https://github.com/PyCQA/bandit
+    rev: '1.7.5'
+    hooks:
+      - id: bandit
+        args: ['-r', './core/', '-f', 'json', '-o', 'bandit-report.json']
+        exclude: |
+          (?x)^(
+              .*/tests/.*|
+              .*/test_.*\.py
+          )$
+
+  # =============================================================================
+  # PYTHON CODE FORMATTING AND LINTING
+  # =============================================================================
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: [--line-length=88, --target-version=py311]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--filter-files"]
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: [--max-line-length=88, --extend-ignore=E203,W503]
+        additional_dependencies:
+          - flake8-security
+          - flake8-bandit
+
+  # =============================================================================
+  # PYTHON SECURITY DEPENDENCY CHECKS
+  # =============================================================================
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.2
+    hooks:
+      - id: python-safety-dependencies-check
+        files: requirements.*\.txt$
+
+  # =============================================================================
+  # DOCKERFILE SECURITY SCANNING
+  # =============================================================================
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        args: [--config, .hadolint.yaml]
+
+  # =============================================================================
+  # INFRASTRUCTURE AS CODE SECURITY
+  # =============================================================================
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.86.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+      - id: terraform_tfsec
+        args: ['--args=--minimum-severity=MEDIUM']
+      - id: terraform_checkov
+        args: ['--args=--framework terraform --check CKV_AWS_*']
+
+  # =============================================================================
+  # KUBERNETES SECURITY VALIDATION
+  # =============================================================================
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-kubectl
+    rev: v1.0.1
+    hooks:
+      - id: kubectl-validate
+        files: \.ya?ml$
+        args: ['--dry-run=client']
+
+  # =============================================================================
+  # YAML AND JSON VALIDATION
+  # =============================================================================
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-d, relaxed]
+
+  # =============================================================================
+  # MARKDOWN LINTING
+  # =============================================================================
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--config', '.markdownlint.json']
+
+  # =============================================================================
+  # CONTAINER SECURITY SCANNING
+  # =============================================================================
+  - repo: local
+    hooks:
+      - id: trivy-filesystem
+        name: Trivy filesystem scan
+        entry: docker run --rm -v $PWD:/workdir aquasec/trivy fs --security-checks vuln,config /workdir
+        language: system
+        pass_filenames: false
+        stages: [commit]
+
+      - id: trivy-container
+        name: Trivy container scan
+        entry: bash -c 'if [ -f Dockerfile ]; then docker build -t local-security-scan . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image local-security-scan; fi'
+        language: system
+        pass_filenames: false
+        files: Dockerfile
+        stages: [push]
+
+  # =============================================================================
+  # GIT COMMIT MESSAGE VALIDATION
+  # =============================================================================
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+default_language_version:
+  python: python3.11
+
+fail_fast: false
+minimum_pre_commit_version: '3.0.0'
+
+# =============================================================================
+# CI CONFIGURATION
+# =============================================================================
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+    
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [trivy-filesystem, trivy-container]
+  submodules: false
