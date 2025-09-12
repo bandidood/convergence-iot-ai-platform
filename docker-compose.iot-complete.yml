@@ -1,0 +1,259 @@
+# =====================================================================================
+# STACK IOT COMPLÈTE - Station Traffeyère
+# XAI + Digital Twin + Edge AI + MQTT en temps réel
+# =====================================================================================
+
+version: '3.8'
+
+networks:
+  iot-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+  backend-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+
+volumes:
+  mqtt_data:
+    driver: local
+  mqtt_logs:
+    driver: local
+  edge_ai_models:
+    driver: local
+  digital_twin_data:
+    driver: local
+
+services:
+  # =====================================================================================
+  # MQTT BROKER - Eclipse Mosquitto
+  # =====================================================================================
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: station-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # WebSocket
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data:/mosquitto/data
+      - mqtt_logs:/mosquitto/log
+    networks:
+      - iot-network
+    environment:
+      - MOSQUITTO_USERNAME=station_mqtt
+      - MOSQUITTO_PASSWORD=mqtt_secure_2024
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "test", "-m", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================  
+  # IOT GENERATOR - 127 Capteurs Simulés
+  # =====================================================================================
+  iot-generator:
+    build:
+      context: ./core/iot-data-generator
+      dockerfile: Dockerfile
+    container_name: station-iot-generator
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - MQTT_USERNAME=station_mqtt
+      - MQTT_PASSWORD=mqtt_secure_2024
+      - SENSOR_COUNT=127
+      - PUBLISH_INTERVAL=5000  # 5 secondes
+      - TOPIC_PREFIX=station/traffeyere
+    networks:
+      - iot-network
+      - backend-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import paho.mqtt.client as mqtt; print('OK')"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # EDGE AI ENGINE - Analyse temps réel
+  # =====================================================================================
+  edge-ai-engine:
+    build:
+      context: ./core/edge-ai-engine
+      dockerfile: Dockerfile
+    container_name: station-edge-ai
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - MQTT_USERNAME=station_mqtt
+      - MQTT_PASSWORD=mqtt_secure_2024
+      - MODEL_PATH=/app/models/edge_ai_model.pkl
+      - ANALYTICS_TOPIC_PREFIX=station/traffeyere/analytics
+      - ANOMALY_THRESHOLD=0.85
+    ports:
+      - "8091:8091"   # API REST
+    networks:
+      - iot-network
+      - backend-network
+    volumes:
+      - edge_ai_models:/app/models
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # XAI BACKEND - Service conversationnel
+  # =====================================================================================
+  xai-backend:
+    build:
+      context: ./interfaces/voice-assistant-xia
+      dockerfile: Dockerfile.backend
+    container_name: station-xai-backend
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - edge-ai-engine
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - MQTT_USERNAME=station_mqtt
+      - MQTT_PASSWORD=mqtt_secure_2024
+      - EDGE_AI_API_URL=http://edge-ai-engine:8091
+      - VOICE_LANGUAGE=fr-FR
+      - REDIS_URL=redis://redis-cache:6379
+    ports:
+      - "5000:5000"   # API REST
+      - "5001:5001"   # WebSocket
+    networks:
+      - iot-network  
+      - backend-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # XAI FRONTEND - Interface vocale web
+  # =====================================================================================
+  xai-frontend:
+    build:
+      context: ./interfaces/voice-assistant-xia
+      dockerfile: Dockerfile.frontend
+    container_name: station-xai-frontend
+    restart: unless-stopped
+    depends_on:
+      - xai-backend
+    environment:
+      - XAI_BACKEND_URL=http://xai-backend:5000
+      - XAI_WEBSOCKET_URL=ws://xai-backend:5001
+    ports:
+      - "3000:80"
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # DIGITAL TWIN - Unity Headless
+  # =====================================================================================
+  digital-twin:
+    build:
+      context: ./digital-twin-unity
+      dockerfile: Dockerfile.headless
+    container_name: station-digital-twin
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - xai-backend
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - MQTT_USERNAME=station_mqtt
+      - MQTT_PASSWORD=mqtt_secure_2024
+      - XAI_COMMAND_TOPIC=station/traffeyere/commands
+      - UNITY_SERVER_PORT=8080
+    ports:
+      - "8080:8080"   # Unity WebGL Server
+    networks:
+      - iot-network
+      - backend-network
+    volumes:
+      - digital_twin_data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+
+  # =====================================================================================
+  # REDIS CACHE - Pour XAI
+  # =====================================================================================
+  redis-cache:
+    image: redis:7-alpine
+    container_name: station-redis-cache
+    restart: unless-stopped
+    command: >
+      redis-server 
+      --requirepass redis_secure_2024
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # DASHBOARD - Interface de monitoring
+  # =====================================================================================
+  monitoring-dashboard:
+    build:
+      context: ./monitoring/dashboard
+      dockerfile: Dockerfile
+    container_name: station-monitoring-dashboard
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - edge-ai-engine
+      - xai-backend
+    environment:
+      - MQTT_BROKER_URL=ws://mqtt-broker:9001
+      - EDGE_AI_API_URL=http://edge-ai-engine:8091
+      - XAI_API_URL=http://xai-backend:5000
+      - DIGITAL_TWIN_URL=http://digital-twin:8080
+    ports:
+      - "3001:80"
+    networks:
+      - iot-network
+      - backend-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,0 +1,292 @@
+# =====================================================================================
+# Station Traffeyère Digital Twin - Docker Compose
+# RNCP 39394 - Orchestration complète Unity + API + Services
+# =====================================================================================
+
+version: '3.8'
+
+services:
+  # =====================================================================================
+  # UNITY DIGITAL TWIN PRINCIPAL
+  # =====================================================================================
+  unity-digital-twin:
+    build:
+      context: .
+      dockerfile: Dockerfile.headless
+      target: production
+    container_name: station-traffeyere-unity-dt
+    restart: unless-stopped
+    ports:
+      - "8080:8080"    # API REST
+      - "8081:8081"    # Serveur Web
+      - "8082:8082"    # WebSocket
+    environment:
+      # Configuration Unity
+      UNITY_LOG_LEVEL: "3"
+      UNITY_APP_PATH: "/app/unity/StationTraffeyere.x86_64"
+      
+      # Configuration API
+      API_PORT: "8080"
+      WEB_PORT: "8081"
+      
+      # Configuration MQTT
+      MQTT_BROKER_HOST: "mqtt-broker"
+      MQTT_BROKER_PORT: "1883"
+      
+      # Configuration Redis
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      
+      # Sécurité
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:-station-traffeyere-jwt-secret-2024}"
+      JWT_EXPIRATION_HOURS: "24"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+      
+      # Performance
+      SENSOR_CACHE_SIZE: "127"
+      WEBSOCKET_MAX_CONNECTIONS: "100"
+      
+    volumes:
+      - unity-logs:/app/logs
+      - unity-cache:/app/cache
+      - ./config:/app/config:ro
+    
+    depends_on:
+      mqtt-broker:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    networks:
+      - station-network
+    
+    healthcheck:
+      test: ["CMD", "python3", "/app/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    
+    labels:
+      - "project=station-traffeyere"
+      - "service=unity-digital-twin"
+      - "rncp=39394"
+      - "version=2.1.0"
+
+  # =====================================================================================
+  # MQTT BROKER SÉCURISÉ
+  # =====================================================================================
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0.18-openssl
+    container_name: station-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"    # MQTT Standard
+      - "8883:8883"    # MQTT TLS
+      - "9001:9001"    # WebSocket
+    
+    volumes:
+      - ./mqtt-config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mqtt-config/passwd:/mosquitto/config/passwd:ro
+      - mqtt-data:/mosquitto/data
+      - mqtt-logs:/mosquitto/log
+    
+    networks:
+      - station-network
+    
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/version", "-C", "1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    
+    labels:
+      - "project=station-traffeyere"
+      - "service=mqtt-broker"
+
+  # =====================================================================================
+  # CACHE REDIS HAUTE PERFORMANCE
+  # =====================================================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: station-redis-cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 60
+      --timeout 300
+    
+    volumes:
+      - redis-data:/data
+      - ./redis-config:/usr/local/etc/redis:ro
+    
+    networks:
+      - station-network
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    
+    labels:
+      - "project=station-traffeyere"
+      - "service=redis-cache"
+
+  # =====================================================================================
+  # MONITORING ET MÉTRIQUES
+  # =====================================================================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: station-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    
+    networks:
+      - station-network
+    
+    labels:
+      - "project=station-traffeyere"
+      - "service=prometheus"
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: station-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin123}"
+      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource"
+      GF_SERVER_ROOT_URL: "http://localhost:3000"
+    
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    
+    networks:
+      - station-network
+    
+    depends_on:
+      - prometheus
+    
+    labels:
+      - "project=station-traffeyere"
+      - "service=grafana"
+
+  # =====================================================================================
+  # GÉNÉRATEUR IOT SIMULÉ (DÉVELOPPEMENT)
+  # =====================================================================================
+  iot-generator:
+    image: station-traffeyere/iot-generator:latest
+    container_name: station-iot-generator
+    restart: unless-stopped
+    
+    environment:
+      MQTT_BROKER_HOST: "mqtt-broker"
+      MQTT_BROKER_PORT: "1883"
+      SENSORS_COUNT: "127"
+      UPDATE_INTERVAL: "1000"  # 1 seconde
+      ENABLE_ANOMALIES: "true"
+      ANOMALY_RATE: "0.05"     # 5% d'anomalies
+    
+    depends_on:
+      mqtt-broker:
+        condition: service_healthy
+    
+    networks:
+      - station-network
+    
+    profiles:
+      - "development"
+    
+    labels:
+      - "project=station-traffeyere"
+      - "service=iot-generator"
+
+# =====================================================================================
+# VOLUMES PERSISTANTS
+# =====================================================================================
+volumes:
+  # Unity Digital Twin
+  unity-logs:
+    driver: local
+    labels:
+      - "project=station-traffeyere"
+      - "type=logs"
+  
+  unity-cache:
+    driver: local
+    labels:
+      - "project=station-traffeyere"
+      - "type=cache"
+  
+  # MQTT Broker
+  mqtt-data:
+    driver: local
+    labels:
+      - "project=station-traffeyere"
+      - "type=mqtt-data"
+  
+  mqtt-logs:
+    driver: local
+    labels:
+      - "project=station-traffeyere"
+      - "type=mqtt-logs"
+  
+  # Redis Cache
+  redis-data:
+    driver: local
+    labels:
+      - "project=station-traffeyere"
+      - "type=redis-data"
+  
+  # Monitoring
+  prometheus-data:
+    driver: local
+    labels:
+      - "project=station-traffeyere"
+      - "type=prometheus-data"
+  
+  grafana-data:
+    driver: local
+    labels:
+      - "project=station-traffeyere"
+      - "type=grafana-data"
+
+# =====================================================================================
+# RÉSEAU ISOLÉ
+# =====================================================================================
+networks:
+  station-network:
+    driver: bridge
+    name: station-traffeyere-network
+    labels:
+      - "project=station-traffeyere"
+      - "rncp=39394"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+          ip_range: 172.30.240.0/20
