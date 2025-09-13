@@ -1,0 +1,177 @@
+# =============================================================================
+# Configuration Prometheus - Station Traffeyère IoT/AI Platform
+# Monitoring et métriques temps réel
+# =============================================================================
+
+global:
+  scrape_interval: 15s      # Collecte toutes les 15 secondes
+  evaluation_interval: 15s  # Évaluation des règles toutes les 15 secondes
+  external_labels:
+    monitor: 'traffeyere-iot-platform'
+    cluster: 'production'
+    region: 'france'
+
+# Configuration des règles d'alerting
+rule_files:
+  - "rules/*.yml"
+
+# Configuration Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# =============================================================================
+# JOBS DE COLLECTE DES MÉTRIQUES
+# =============================================================================
+
+scrape_configs:
+  # =========================================================================
+  # INFRASTRUCTURE MONITORING
+  # =========================================================================
+  
+  # Auto-monitoring Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    
+  # Backend FastAPI avec instrumentation
+  - job_name: 'backend-api'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    honor_labels: true
+    
+  # Base de données PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    
+  # Cache Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    
+  # InfluxDB time-series
+  - job_name: 'influxdb'
+    static_configs:
+      - targets: ['influxdb:8086']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # =========================================================================
+  # IOT SENSORS MONITORING
+  # =========================================================================
+  
+  # Métriques capteurs via backend
+  - job_name: 'iot-sensors'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics/iot
+    scrape_interval: 5s    # Plus fréquent pour IoT
+    params:
+      format: ['prometheus']
+      
+  # MQTT Broker Mosquitto
+  - job_name: 'mqtt-broker'
+    static_configs:
+      - targets: ['mosquitto-exporter:9234']
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  # =========================================================================
+  # AI/ML MONITORING
+  # =========================================================================
+  
+  # Métriques modèles IA Edge
+  - job_name: 'edge-ai-models'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics/ai
+    scrape_interval: 30s
+    params:
+      include: ['model_inference_time', 'model_accuracy', 'anomaly_detection']
+      
+  # Métriques explicabilité XAI
+  - job_name: 'xai-explanations'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics/xai
+    scrape_interval: 60s
+
+  # =========================================================================
+  # SYSTEM MONITORING
+  # =========================================================================
+  
+  # Métriques système avec node_exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    
+  # cAdvisor pour métriques containers
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # =========================================================================
+  # BUSINESS METRICS
+  # =========================================================================
+  
+  # Métriques métier spécifiques Station Traffeyère
+  - job_name: 'station-metrics'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics/station
+    scrape_interval: 60s
+    params:
+      station_id: ['TRAFFEYERE_001']
+      
+  # Performance réseau IoT
+  - job_name: 'network-iot'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics/network
+    scrape_interval: 30s
+
+  # =========================================================================
+  # EXTERNAL SERVICES
+  # =========================================================================
+  
+  # Monitoring des APIs externes (IA Providers)
+  - job_name: 'external-ai-apis'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics/external
+    scrape_interval: 60s
+    params:
+      providers: ['openai', 'anthropic', 'google', 'perplexity']
+
+# =============================================================================
+# CONFIGURATION DE RÉTENTION
+# =============================================================================
+
+# Rétention des données (15 jours par défaut)
+# Peut être configuré avec --storage.tsdb.retention.time=15d
+
+# =============================================================================
+# REMOTE WRITE (pour archivage long terme)
+# =============================================================================
+
+# Configuration pour envoi vers stockage long terme
+# remote_write:
+#   - url: "https://prometheus-remote-storage.example.com/write"
+#     basic_auth:
+#       username: "username"
+#       password: "password"
