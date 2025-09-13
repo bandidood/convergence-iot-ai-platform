@@ -32,13 +32,14 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
 
-import { useIoTData } from '@hooks/useIoTData';
-import { useWebSocket } from '@hooks/useWebSocket';
+import { useIoTData } from '../../hooks/useIoTData';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import IoTSensorGrid from './IoTSensorGrid';
 import AlertsPanel from './AlertsPanel';
 import MetricsOverview from './MetricsOverview';
-import RealTimeChart from '@components/Charts/RealTimeChart';
-import { IoTSensor, AlertLevel, SystemMetrics } from '@types/iot.types';
+import RealTimeChart from '../Charts/RealTimeChart';
+import ConversationalInterfaceContainer from '../ConversationalInterface/ConversationalInterfaceContainer';
+import { IoTSensor, AlertLevel, SystemMetrics } from '../../types/iot.types';
 
 interface MainDashboardProps {
   onNavigateToXAI?: () => void;
@@ -54,6 +55,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
+  const [conversationalMinimized, setConversationalMinimized] = useState(true);
+  const [conversationalPosition, setConversationalPosition] = useState<'bottom-right' | 'bottom-left' | 'center' | 'fullscreen'>('bottom-right');
 
   // Hooks personnalisés
   const { sensors, metrics, loading, error, refreshData } = useIoTData();
@@ -103,6 +106,34 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
       document.documentElement.requestFullscreen?.();
     }
     setIsFullscreen(!isFullscreen);
+  };
+
+  // Gestion actions interface conversationnelle
+  const handleConversationalAction = (action: string, data?: any) => {
+    console.log('🎬 Action conversationnelle dashboard:', action, data);
+    
+    switch (action) {
+      case 'navigate':
+        if (data?.path === '/dashboard' && onNavigateToXAI) {
+          // Déjà sur le dashboard
+        } else if (data?.path === '/xai' && onNavigateToXAI) {
+          onNavigateToXAI();
+        } else if (data?.path === '/digital-twin' && onNavigateToDigitalTwin) {
+          onNavigateToDigitalTwin();
+        }
+        break;
+      case 'refresh-data':
+        refreshData();
+        break;
+      case 'fullscreen':
+        handleFullscreenToggle();
+        break;
+      case 'position-change':
+        setConversationalPosition(data);
+        break;
+      default:
+        console.log('Action non gérée:', action, data);
+    }
   };
 
   if (loading && !sensors) {
@@ -409,9 +440,42 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         </Grid>
       </Grid>
 
-      {/* Assistant vocal flottant */}
+      {/* Interface Conversationnelle Intégrée XIA */}
+      <ConversationalInterfaceContainer
+        sensorData={sensors || []}
+        alerts={sensors?.filter(s => s.alertLevel !== 'normal') || []}
+        anomalies={sensorStats?.anomalies || 0}
+        isMinimized={conversationalMinimized}
+        onMinimizedChange={setConversationalMinimized}
+        position={conversationalPosition}
+        onAction={handleConversationalAction}
+        config={{
+          websocket: {
+            enabled: true,
+            url: 'ws://backend:8000/ws/conversational',
+            heartbeatInterval: 30000,
+            reconnectInterval: 3000,
+            maxReconnectAttempts: 5,
+          },
+          iot: {
+            contextualResponses: true,
+            sensorDataIntegration: true,
+            alertNotifications: true,
+            realTimeUpdates: true,
+          },
+          ui: {
+            theme: 'auto',
+            animations: true,
+            compactMode: false,
+            maxHistoryItems: 50,
+            autoSaveHistory: true,
+          },
+        }}
+      />
+
+      {/* Assistant vocal flottant (fallback si conversational désactivé) */}
       <AnimatePresence>
-        {onOpenVoiceAssistant && (
+        {onOpenVoiceAssistant && conversationalMinimized && (
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -419,21 +483,21 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             style={{
               position: 'fixed',
               bottom: 24,
-              right: 24,
-              zIndex: 1000,
+              left: 24,
+              zIndex: 999,
             }}
           >
-            <Tooltip title="Assistant Vocal XIA">
+            <Tooltip title="Assistant Vocal Classique">
               <Fab
+                size="medium"
                 color="secondary"
                 onClick={onOpenVoiceAssistant}
                 sx={{
                   background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
-                  animation: 'pulse 2s infinite',
-                  '@keyframes pulse': {
-                    '0%': { transform: 'scale(1)' },
-                    '50%': { transform: 'scale(1.05)' },
-                    '100%': { transform: 'scale(1)' },
+                  opacity: 0.7,
+                  '&:hover': {
+                    opacity: 1,
+                    transform: 'scale(1.05)',
                   },
                 }}
               >
