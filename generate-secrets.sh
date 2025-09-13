@@ -67,9 +67,11 @@ echo ""
 read -p "Voulez-vous créer automatiquement le fichier .env ? (y/n): " create_env
 
 if [[ $create_env =~ ^[Yy]$ ]]; then
-    # Demander le domaine
-    read -p "Entrez votre domaine principal (ex: traffeyere-station.fr): " domain_name
-    read -p "Entrez votre email pour Let's Encrypt: " acme_email
+    # Demander le domaine (avec valeur par défaut CCDigital)
+    read -p "Entrez votre domaine principal [traffeyere.ccdigital.fr]: " domain_name
+    domain_name=${domain_name:-traffeyere.ccdigital.fr}
+    read -p "Entrez votre email pour Let's Encrypt [admin@ccdigital.fr]: " acme_email
+    acme_email=${acme_email:-admin@ccdigital.fr}
     
     # Créer le fichier .env
     cat > .env << EOF

@@ -362,9 +362,11 @@ Write-Host ""
 
 Write-Host "🌐 ACCÈS AUX SERVICES:" -ForegroundColor Magenta
 Write-Host "• Coolify Dashboard: $CoolifyURL" -ForegroundColor White
-Write-Host "• Frontend: https://app.votre-domaine.com" -ForegroundColor White  
-Write-Host "• API Backend: https://api.votre-domaine.com" -ForegroundColor White
-Write-Host "• Monitoring: https://grafana.votre-domaine.com" -ForegroundColor White
+Write-Host "• Frontend: https://traffeyere.ccdigital.fr" -ForegroundColor White  
+Write-Host "• API Backend: https://api.traffeyere.ccdigital.fr" -ForegroundColor White
+Write-Host "• Monitoring: https://grafana.traffeyere.ccdigital.fr" -ForegroundColor White
+Write-Host "• InfluxDB: https://influx.traffeyere.ccdigital.fr" -ForegroundColor White
+Write-Host "• MQTT WebSocket: https://mqtt.traffeyere.ccdigital.fr" -ForegroundColor White
 Write-Host ""
 
 Write-Host "📋 PROCHAINES ÉTAPES:" -ForegroundColor Cyan

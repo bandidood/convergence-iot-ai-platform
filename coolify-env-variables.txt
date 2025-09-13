@@ -1,0 +1,98 @@
+# =============================================================================
+# VARIABLES D'ENVIRONNEMENT - Station Traffeyère IoT/AI Platform
+# À configurer dans Coolify : https://coolify.ccdigital.fr
+# Projet RNCP 39394 - Expert en Systèmes d'Information et Sécurité
+# =============================================================================
+
+# 🌐 DOMAINE ET REPOSITORY
+DOMAIN_ROOT=traffeyere.ccdigital.fr
+GIT_REPOSITORY_URL=https://github.com/bandidood/convergence-iot-ai-platform.git
+
+# 🗄️ BASE DE DONNÉES POSTGRESQL
+POSTGRES_DB=station_traffeyere
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=[GÉNÉRER_AVEC_SCRIPT]
+
+# 🔴 REDIS CACHE
+REDIS_PASSWORD=[GÉNÉRER_AVEC_SCRIPT]
+
+# 📊 INFLUXDB (BASE DE DONNÉES TEMPORELLE)
+INFLUX_USERNAME=admin
+INFLUX_PASSWORD=[GÉNÉRER_AVEC_SCRIPT]
+INFLUX_ORG=traffeyere
+INFLUX_BUCKET=iot_sensors
+INFLUX_ADMIN_TOKEN=[GÉNÉRER_AVEC_SCRIPT]
+
+# 🔐 SÉCURITÉ APPLICATION
+SECRET_KEY=[GÉNÉRER_AVEC_SCRIPT]
+JWT_SECRET=[GÉNÉRER_AVEC_SCRIPT]
+
+# 📡 MQTT BROKER
+MQTT_USERNAME=iot_user
+MQTT_PASSWORD=[GÉNÉRER_AVEC_SCRIPT]
+
+# 📊 MONITORING GRAFANA
+GRAFANA_ADMIN_PASSWORD=[GÉNÉRER_AVEC_SCRIPT]
+GRAFANA_DB_PASSWORD=[GÉNÉRER_AVEC_SCRIPT]
+
+# 🤖 API INTELLIGENCE ARTIFICIELLE (OPTIONNEL)
+# Ajoutez vos clés API seulement si vous en avez
+OPENAI_API_KEY=sk-votre-cle-openai
+ANTHROPIC_API_KEY=sk-ant-votre-cle-claude
+GOOGLE_API_KEY=votre-cle-gemini
+PERPLEXITY_API_KEY=pplx-votre-cle-perplexity
+
+# 🏭 CONFIGURATION MÉTIER STATION
+STATION_ID=TRAFFEYERE_001
+STATION_NAME=Station Traffeyère
+STATION_LOCATION=45.764043,4.835659
+
+# ⚠️ SEUILS D'ALERTE IOT
+TEMP_ALERT_THRESHOLD=35.0
+PRESSURE_ALERT_THRESHOLD=2.5
+PH_ALERT_THRESHOLD_MIN=6.0
+PH_ALERT_THRESHOLD_MAX=8.5
+
+# 🧠 PARAMÈTRES INTELLIGENCE ARTIFICIELLE
+AI_CONFIDENCE_THRESHOLD=0.85
+ANOMALY_DETECTION_WINDOW=3600
+MODEL_UPDATE_INTERVAL=86400
+
+# 📧 CONFIGURATION MONITORING
+ACME_EMAIL=admin@ccdigital.fr
+
+# 🎓 MÉTADONNÉES PROJET RNCP
+PROJECT_NAME=Station Traffeyère IoT/AI Platform
+PROJECT_VERSION=1.0.0
+RNCP_CODE=39394
+
+# =============================================================================
+# INSTRUCTIONS POUR CONFIGURATION DANS COOLIFY
+# =============================================================================
+
+# 1. Connectez-vous à : https://coolify.ccdigital.fr
+# 2. Allez dans votre projet → Settings → Environment Variables
+# 3. Copiez-collez chaque variable ci-dessus
+# 4. Remplacez [GÉNÉRER_AVEC_SCRIPT] par les valeurs générées avec ./generate-secrets.sh
+
+# =============================================================================
+# GÉNÉRATION AUTOMATIQUE DES SECRETS
+# =============================================================================
+
+# Sur votre machine Windows, lancez :
+# ./generate-secrets.sh
+
+# Puis copiez les valeurs générées pour remplacer [GÉNÉRER_AVEC_SCRIPT]
+
+# =============================================================================
+# URLS D'ACCÈS POST-DÉPLOIEMENT
+# =============================================================================
+
+# Frontend Application : https://traffeyere.ccdigital.fr
+# API Backend          : https://api.traffeyere.ccdigital.fr
+# Monitoring Grafana   : https://grafana.traffeyere.ccdigital.fr
+# Métriques Prometheus : https://metrics.traffeyere.ccdigital.fr
+# InfluxDB Interface   : https://influx.traffeyere.ccdigital.fr
+# MQTT WebSocket       : https://mqtt.traffeyere.ccdigital.fr
+
+# Dashboard Coolify    : https://coolify.ccdigital.fr
