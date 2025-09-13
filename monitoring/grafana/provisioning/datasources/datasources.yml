@@ -1,25 +1,231 @@
+# =============================================================================
+# Configuration Datasources Grafana - Station Traffeyère
+# Architecture Coolify Production - RNCP 39394
+# Prometheus + InfluxDB + PostgreSQL + Observabilité complète
+# =============================================================================
+
 apiVersion: 1
 
-# Configuration automatique des sources de données
-# RNCP 39394 - Expert en Systèmes d'Information et Sécurité
-
+# Datasources à provisionner automatiquement
 datasources:
-  # Prometheus principal - Station Traffeyère
-  - name: Prometheus-Station-Traffeyere
+  # ==========================================================================
+  # PROMETHEUS - Métriques système et application
+  # ==========================================================================
+  - name: Prometheus
     type: prometheus
     access: proxy
-    url: http://host.docker.internal:9090
+    url: http://prometheus:9090
     uid: prometheus-main
     isDefault: true
+    version: 1
     editable: true
-    
     jsonData:
       httpMethod: POST
+      manageAlerts: true
+      timeInterval: '15s'
+      queryTimeout: '60s'
+      defaultRegion: 'eu-west-1'
+      customQueryParameters: ''
       prometheusType: Prometheus
-      prometheusVersion: 2.45.0
+      prometheusVersion: '2.48.0'
       cacheLevel: 'High'
       incrementalQuerying: true
-      manageAlerts: true
-      
-    # Configuration pour Edge AI et IoT
+      exemplarTraceIdDestinations:
+        - name: TraceID
+          datasourceUid: 'jaeger'
+          urlDisplayLabel: 'View Trace'
+    secureJsonData:
+      httpHeaderValue1: 'application/json'
+
+  # ==========================================================================
+  # INFLUXDB - Données IoT temps réel
+  # ==========================================================================
+  - name: InfluxDB-IoT
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    uid: influxdb-iot
+    version: 2
+    editable: true
+    jsonData:
+      version: Flux
+      organization: station-traffeyere
+      defaultBucket: iot-metrics
+      maxSeries: 1000
+      httpMode: POST
+      httpHeaderName1: 'Authorization'
+      tlsAuth: false
+      tlsAuthWithCACert: false
+      tlsSkipVerify: true
+    secureJsonData:
+      token: '${INFLUXDB_TOKEN}'
+      httpHeaderValue1: 'Token ${INFLUXDB_TOKEN}'
+
+  # ==========================================================================
+  # POSTGRES - Base de données relationnelle + TimescaleDB
+  # ==========================================================================
+  - name: PostgreSQL-TimescaleDB
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: station_traffeyere
+    user: '${POSTGRES_USER}'
+    uid: postgres-timescale
+    editable: true
+    jsonData:
+      sslmode: 'disable'
+      maxOpenConns: 100
+      maxIdleConns: 100
+      connMaxLifetime: 14400
+      postgresVersion: 1500
+      timescaledb: true
+      configurationMethod: 'form'
+    secureJsonData:
+      password: '${POSTGRES_PASSWORD}'
+
+  # ==========================================================================
+  # LOKI - Logs agrégés (si disponible)
+  # ==========================================================================
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    uid: loki-logs
     version: 1
+    editable: true
+    jsonData:
+      maxLines: 1000
+      timeout: '60s'
+      derivedFields:
+        - name: 'TraceID'
+          matcherRegex: 'trace_id=(\w+)'
+          url: 'http://jaeger:16686/trace/$${__value.raw}'
+          datasourceUid: 'jaeger'
+
+  # ==========================================================================
+  # JAEGER - Tracing distribué (si disponible)
+  # ==========================================================================
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:14268
+    uid: jaeger-traces
+    version: 1
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: 'loki-logs'
+        filterByTraceID: false
+        filterBySpanID: false
+        tags:
+          - key: 'service.name'
+            value: 'service'
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+
+  # ==========================================================================
+  # PROMETHEUS POUR REDIS - Métriques cache
+  # ==========================================================================
+  - name: Redis-Metrics
+    type: prometheus
+    access: proxy
+    url: http://redis-exporter:9121
+    uid: redis-metrics
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: GET
+      scrapeInterval: '30s'
+      prometheusType: Prometheus
+
+  # ==========================================================================
+  # PROMETHEUS POUR MINIO - Métriques S3 Storage
+  # ==========================================================================
+  - name: MinIO-Metrics
+    type: prometheus
+    access: proxy
+    url: http://minio:9000
+    uid: minio-metrics
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: GET
+      scrapeInterval: '30s'
+      customQueryParameters: 'format=prometheus'
+      prometheusType: Prometheus
+
+  # ==========================================================================
+  # CLOUDWATCH (si déploiement AWS)
+  # ==========================================================================
+  - name: CloudWatch
+    type: cloudwatch
+    uid: cloudwatch-aws
+    editable: true
+    jsonData:
+      defaultRegion: 'eu-west-1'
+      customMetricsNamespaces: 'AWS/EC2,AWS/RDS,AWS/ELB,Station-Traffeyere'
+    secureJsonData:
+      accessKey: '${AWS_ACCESS_KEY_ID}'
+      secretKey: '${AWS_SECRET_ACCESS_KEY}'
+
+# Configuration alertes et notifications
+alerting:
+  notification_policies:
+    - receiver: slack-alerts
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+        - match:
+            severity: critical
+          receiver: slack-critical
+          group_wait: 10s
+          repeat_interval: 1h
+
+  receivers:
+    - name: slack-alerts
+      slack_configs:
+        - api_url: '${SLACK_WEBHOOK_URL}'
+          channel: '#station-alerts'
+          username: 'Grafana-Station-Traffeyere'
+          icon_emoji: ':warning:'
+          title: 'Station Traffeyère Alert'
+          text: >
+            {{ range .Alerts }}
+            *Alert:* {{ .Annotations.summary }}
+            *Description:* {{ .Annotations.description }}
+            *Details:* {{ range .Labels.SortedPairs }} • {{ .Name }}: {{ .Value }}{{ end }}
+            {{ end }}
+
+    - name: slack-critical
+      slack_configs:
+        - api_url: '${SLACK_WEBHOOK_CRITICAL}'
+          channel: '#station-critical'
+          username: 'Grafana-CRITICAL'
+          icon_emoji: ':rotating_light:'
+          title: '🚨 CRITICAL: Station Traffeyère'
+          text: >
+            {{ range .Alerts }}
+            *CRITICAL ALERT:* {{ .Annotations.summary }}
+            *Impact:* {{ .Annotations.description }}
+            *Immediate Action Required*
+            {{ range .Labels.SortedPairs }} • {{ .Name }}: {{ .Value }}{{ end }}
+            {{ end }}
+
+    - name: email-alerts
+      email_configs:
+        - to: 'johann@johann-lebel.fr'
+          from: 'alerts@johann-lebel.fr'
+          smarthost: 'smtp.johann-lebel.fr:587'
+          subject: '[Station Traffeyère] Alert: {{ .GroupLabels.alertname }}'
+          body: |
+            Alert Details:
+            {{ range .Alerts }}
+            - Alert: {{ .Annotations.summary }}
+            - Description: {{ .Annotations.description }}
+            - Severity: {{ .Labels.severity }}
+            - Time: {{ .StartsAt }}
+            {{ end }}
+          auth_username: 'alerts@johann-lebel.fr'
+          auth_password: '${SMTP_PASSWORD}'

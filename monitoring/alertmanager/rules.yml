@@ -1,0 +1,376 @@
+# Station Traffeyère IoT/AI Platform - Alert Rules
+# Monitoring et alerting pour infrastructure critique
+
+groups:
+  # Infrastructure Alerts
+  - name: infrastructure
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: (100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+          runbook: "https://docs.station-traffeyere.com/runbook/high-cpu"
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes. Current value: {{ $value }}%"
+          
+      - alert: CriticalCPUUsage
+        expr: (100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: infrastructure
+          runbook: "https://docs.station-traffeyere.com/runbook/critical-cpu"
+        annotations:
+          summary: "Critical CPU usage detected"
+          description: "CPU usage is above 95% for more than 2 minutes. Current value: {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+          runbook: "https://docs.station-traffeyere.com/runbook/high-memory"
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90%. Available memory: {{ $value }}%"
+
+      - alert: CriticalMemoryUsage
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 5
+        for: 2m
+        labels:
+          severity: critical
+          service: infrastructure
+          runbook: "https://docs.station-traffeyere.com/runbook/critical-memory"
+        annotations:
+          summary: "Critical memory usage detected"
+          description: "Memory usage is above 95%. Available memory: {{ $value }}%"
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+          runbook: "https://docs.station-traffeyere.com/runbook/high-disk"
+        annotations:
+          summary: "High disk usage detected on {{ $labels.device }}"
+          description: "Disk usage is above 85% on device {{ $labels.device }}. Current usage: {{ $value }}%"
+
+      - alert: CriticalDiskUsage
+        expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+          service: infrastructure
+          runbook: "https://docs.station-traffeyere.com/runbook/critical-disk"
+        annotations:
+          summary: "Critical disk usage detected on {{ $labels.device }}"
+          description: "Disk usage is above 95% on device {{ $labels.device }}. Current usage: {{ $value }}%"
+
+  # Application Performance Alerts
+  - name: application
+    interval: 15s
+    rules:
+      - alert: HighAPIResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="backend"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+          runbook: "https://docs.station-traffeyere.com/runbook/high-api-latency"
+        annotations:
+          summary: "High API response time"
+          description: "API P95 response time is above 2 seconds. Current P95: {{ $value }}s"
+
+      - alert: CriticalAPIResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="backend"}[5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+          runbook: "https://docs.station-traffeyere.com/runbook/critical-api-latency"
+        annotations:
+          summary: "Critical API response time"
+          description: "API P95 response time is above 5 seconds. Current P95: {{ $value }}s"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          service: backend
+          runbook: "https://docs.station-traffeyere.com/runbook/high-error-rate"
+        annotations:
+          summary: "High 5xx error rate"
+          description: "5xx error rate is above 5%. Current rate: {{ $value | humanizePercentage }}"
+
+      - alert: CriticalErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.20
+        for: 1m
+        labels:
+          severity: critical
+          service: backend
+          runbook: "https://docs.station-traffeyere.com/runbook/critical-error-rate"
+        annotations:
+          summary: "Critical 5xx error rate"
+          description: "5xx error rate is above 20%. Current rate: {{ $value | humanizePercentage }}"
+
+  # Service Availability Alerts
+  - name: availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+          runbook: "https://docs.station-traffeyere.com/runbook/service-down"
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+
+      - alert: PostgreSQLDown
+        expr: postgres_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: postgresql
+          runbook: "https://docs.station-traffeyere.com/runbook/postgres-down"
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database has been unreachable for more than 30 seconds"
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: redis
+          runbook: "https://docs.station-traffeyere.com/runbook/redis-down"
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis cache has been unreachable for more than 30 seconds"
+
+      - alert: InfluxDBDown
+        expr: influxdb_up == 0
+        for: 1m
+        labels:
+          severity: warning
+          service: influxdb
+          runbook: "https://docs.station-traffeyere.com/runbook/influxdb-down"
+        annotations:
+          summary: "InfluxDB time-series database is down"
+          description: "InfluxDB has been unreachable for more than 1 minute"
+
+  # Database Performance Alerts
+  - name: database
+    interval: 30s
+    rules:
+      - alert: PostgreSQLConnectionSaturation
+        expr: (postgres_settings_max_connections - postgres_stat_activity_count) / postgres_settings_max_connections < 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: postgresql
+          runbook: "https://docs.station-traffeyere.com/runbook/postgres-connections"
+        annotations:
+          summary: "PostgreSQL connection pool saturation"
+          description: "PostgreSQL has less than 10% available connections. Available: {{ $value | humanizePercentage }}"
+
+      - alert: PostgreSQLSlowQueries
+        expr: postgres_slow_queries_total > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+          runbook: "https://docs.station-traffeyere.com/runbook/postgres-slow-queries"
+        annotations:
+          summary: "PostgreSQL slow queries detected"
+          description: "{{ $value }} slow queries detected in the last 5 minutes"
+
+      - alert: RedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          runbook: "https://docs.station-traffeyere.com/runbook/redis-memory"
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is above 90%. Current usage: {{ $value | humanizePercentage }}"
+
+  # IoT/AI Specific Alerts
+  - name: iot_ai
+    interval: 15s
+    rules:
+      - alert: HighIoTDataIngestionLatency
+        expr: histogram_quantile(0.95, rate(iot_data_ingestion_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: iot-generator
+          runbook: "https://docs.station-traffeyere.com/runbook/iot-latency"
+        annotations:
+          summary: "High IoT data ingestion latency"
+          description: "IoT data ingestion P95 latency is above 1 second. Current P95: {{ $value }}s"
+
+      - alert: EdgeAIInferenceLatency
+        expr: histogram_quantile(0.95, rate(edge_ai_inference_duration_seconds_bucket[5m])) > 0.0005
+        for: 3m
+        labels:
+          severity: warning
+          service: edge-ai
+          runbook: "https://docs.station-traffeyere.com/runbook/edge-ai-latency"
+        annotations:
+          summary: "Edge AI inference latency exceeding target"
+          description: "Edge AI P95 inference latency is above 0.5ms target. Current P95: {{ $value }}s"
+
+      - alert: AnomalyDetectionAccuracy
+        expr: edge_ai_model_accuracy < 0.95
+        for: 10m
+        labels:
+          severity: warning
+          service: edge-ai
+          runbook: "https://docs.station-traffeyere.com/runbook/ai-accuracy"
+        annotations:
+          summary: "Edge AI model accuracy degradation"
+          description: "Edge AI model accuracy is below 95% threshold. Current accuracy: {{ $value | humanizePercentage }}"
+
+      - alert: IoTSensorOffline
+        expr: increase(iot_sensor_offline_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: iot-sensors
+          runbook: "https://docs.station-traffeyere.com/runbook/iot-sensors-offline"
+        annotations:
+          summary: "IoT sensors going offline"
+          description: "{{ $value }} IoT sensors have gone offline in the last 5 minutes"
+
+      - alert: CriticalAnomalyDetected
+        expr: increase(edge_ai_anomaly_critical_total[1m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          service: edge-ai
+          runbook: "https://docs.station-traffeyere.com/runbook/critical-anomaly"
+        annotations:
+          summary: "Critical anomaly detected in station operations"
+          description: "Edge AI has detected {{ $value }} critical anomalies in the last minute. Immediate investigation required."
+
+  # Security Alerts
+  - name: security
+    interval: 30s
+    rules:
+      - alert: UnauthorizedAPIAccess
+        expr: rate(http_requests_total{status="401"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: security
+          runbook: "https://docs.station-traffeyere.com/runbook/unauthorized-access"
+        annotations:
+          summary: "High rate of unauthorized API access attempts"
+          description: "{{ $value }} 401 errors per second detected. Possible brute force attack."
+
+      - alert: TLSCertificateExpiry
+        expr: probe_ssl_earliest_cert_expiry - time() < 7 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+          service: security
+          runbook: "https://docs.station-traffeyere.com/runbook/cert-expiry"
+        annotations:
+          summary: "TLS certificate expiring soon"
+          description: "TLS certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+
+      - alert: FailedAuthenticationSpike
+        expr: rate(auth_failed_attempts_total[5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: security
+          runbook: "https://docs.station-traffeyere.com/runbook/auth-failures"
+        annotations:
+          summary: "Spike in failed authentication attempts"
+          description: "{{ $value }} failed authentication attempts per second in the last 5 minutes"
+
+  # Business Critical Alerts
+  - name: business_critical
+    interval: 10s
+    rules:
+      - alert: StationOperationalStatus
+        expr: station_operational_status == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: station-operations
+          runbook: "https://docs.station-traffeyere.com/runbook/station-critical"
+        annotations:
+          summary: "Station Traffeyère operational status compromised"
+          description: "Station operational status has been compromised for more than 30 seconds. Immediate intervention required."
+
+      - alert: WaterQualityThreshold
+        expr: water_quality_index < 0.8
+        for: 2m
+        labels:
+          severity: critical
+          service: water-quality
+          runbook: "https://docs.station-traffeyere.com/runbook/water-quality"
+        annotations:
+          summary: "Water quality below acceptable threshold"
+          description: "Water quality index is {{ $value }}, below 0.8 threshold. Regulatory compliance at risk."
+
+      - alert: TreatmentEfficiency
+        expr: treatment_efficiency_percentage < 85
+        for: 5m
+        labels:
+          severity: warning
+          service: treatment-process
+          runbook: "https://docs.station-traffeyere.com/runbook/treatment-efficiency"
+        annotations:
+          summary: "Treatment process efficiency degraded"
+          description: "Treatment efficiency is {{ $value }}%, below 85% target. Process optimization required."
+
+  # Prometheus Self-Monitoring
+  - name: prometheus
+    interval: 30s
+    rules:
+      - alert: PrometheusConfigReloadFailure
+        expr: prometheus_config_last_reload_successful == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: prometheus
+          runbook: "https://docs.station-traffeyere.com/runbook/prometheus-config"
+        annotations:
+          summary: "Prometheus configuration reload failure"
+          description: "Prometheus configuration reload has been failing for 5 minutes"
+
+      - alert: PrometheusTargetDown
+        expr: up{job!="prometheus"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: prometheus
+          runbook: "https://docs.station-traffeyere.com/runbook/target-down"
+        annotations:
+          summary: "Prometheus target down"
+          description: "Prometheus target {{ $labels.job }} has been down for more than 2 minutes"
+
+      - alert: PrometheusTSDBReloadFailures
+        expr: increase(prometheus_tsdb_reloads_failures_total[1h]) > 0
+        for: 0s
+        labels:
+          severity: warning
+          service: prometheus
+          runbook: "https://docs.station-traffeyere.com/runbook/tsdb-reload"
+        annotations:
+          summary: "Prometheus TSDB reload failures"
+          description: "{{ $value }} Prometheus TSDB reload failures in the last hour"

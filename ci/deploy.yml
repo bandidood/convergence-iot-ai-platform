@@ -1,0 +1,418 @@
+# =============================================================================
+# GitHub Actions CI/CD Pipeline - Station Traffeyère IoT/AI Platform
+# Déploiement automatique sur Coolify - RNCP 39394
+# =============================================================================
+
+name: 🚀 Deploy to Coolify Production
+
+on:
+  push:
+    branches:
+      - main
+      - production
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      force_rebuild:
+        description: 'Force rebuild all images'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_PREFIX: ${{ github.repository }}/station-traffeyere
+
+jobs:
+  # ==========================================================================
+  # TESTS & VALIDATION
+  # ==========================================================================
+  tests:
+    name: 🧪 Tests & Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r services/backend/requirements.txt
+          pip install pytest pytest-cov black isort flake8 mypy safety bandit
+
+      - name: 🔍 Code Quality - Black
+        run: black --check --diff services/backend/
+
+      - name: 🔍 Code Quality - isort
+        run: isort --check-only --diff services/backend/
+
+      - name: 🔍 Code Quality - Flake8
+        run: flake8 services/backend/ --max-line-length=88 --extend-ignore=E203,W503
+
+      - name: 🔍 Type Checking - mypy
+        run: mypy services/backend/ --ignore-missing-imports
+
+      - name: 🔒 Security Scan - Safety
+        run: safety check --json
+
+      - name: 🔒 Security Scan - Bandit
+        run: bandit -r services/backend/ -f json -o bandit-report.json || true
+
+      - name: 🧪 Run Python Tests
+        run: |
+          cd services/backend/
+          python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+        env:
+          TESTING: true
+          DATABASE_URL: sqlite:///./test.db
+
+      - name: 📊 Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./services/backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'services/frontend/package-lock.json'
+
+      - name: 📦 Install Node.js dependencies
+        run: |
+          cd services/frontend/
+          npm ci
+
+      - name: 🔍 Frontend Lint
+        run: |
+          cd services/frontend/
+          npm run lint
+
+      - name: 🧪 Frontend Tests
+        run: |
+          cd services/frontend/
+          npm run test:ci
+
+      - name: 🏗️ Test Frontend Build
+        run: |
+          cd services/frontend/
+          npm run build
+
+      - name: 📄 Generate Test Report
+        if: always()
+        run: |
+          echo "## 📊 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Python tests completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Frontend tests completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security scans completed" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # BUILD & PUSH IMAGES
+  # ==========================================================================
+  build:
+    name: 🏗️ Build & Push Images
+    runs-on: ubuntu-latest
+    needs: tests
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      matrix:
+        service:
+          - frontend
+          - backend
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📝 Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 🏗️ Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/${{ matrix.service }}
+          file: ./services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+
+      - name: 🔍 Image Security Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}-${{ matrix.service }}:latest
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+
+      - name: 📤 Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+
+  # ==========================================================================
+  # DEPLOY TO COOLIFY
+  # ==========================================================================
+  deploy:
+    name: 🚀 Deploy to Coolify
+    runs-on: ubuntu-latest
+    needs: [tests, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: 
+      name: production
+      url: https://frontend-station.johann-lebel.fr
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup deployment environment
+        run: |
+          echo "DEPLOYMENT_START_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: 🚀 Deploy to Coolify
+        uses: fjogeleit/http-request-action@v1
+        id: coolify_deploy
+        with:
+          url: '${{ secrets.COOLIFY_WEBHOOK_URL }}'
+          method: 'POST'
+          contentType: 'application/json'
+          data: |
+            {
+              "event": "deployment",
+              "repository": "${{ github.repository }}",
+              "branch": "${{ github.ref_name }}",
+              "commit": "${{ github.sha }}",
+              "tag": "${{ env.IMAGE_TAG }}",
+              "actor": "${{ github.actor }}",
+              "workflow": "${{ github.workflow }}",
+              "environment": "production"
+            }
+          bearerToken: ${{ secrets.COOLIFY_API_TOKEN }}
+          timeout: 300000
+
+      - name: ⏳ Wait for deployment
+        run: |
+          echo "Waiting for Coolify deployment to complete..."
+          sleep 60
+
+      - name: 🏥 Health Check - Frontend
+        run: |
+          max_attempts=30
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            if curl -f --max-time 10 https://frontend-station.johann-lebel.fr/healthz; then
+              echo "✅ Frontend health check passed"
+              break
+            fi
+            
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ Frontend health check failed after $max_attempts attempts"
+              exit 1
+            fi
+            
+            echo "Attempt $attempt/$max_attempts failed, waiting..."
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+
+      - name: 🏥 Health Check - Backend API
+        run: |
+          max_attempts=30
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            if curl -f --max-time 10 https://backend-station.johann-lebel.fr/healthz; then
+              echo "✅ Backend health check passed"
+              break
+            fi
+            
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ Backend health check failed after $max_attempts attempts"
+              exit 1
+            fi
+            
+            echo "Attempt $attempt/$max_attempts failed, waiting..."
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+
+      - name: 🧪 Smoke Tests
+        run: |
+          echo "Running post-deployment smoke tests..."
+          
+          # Test 1: API Status
+          api_response=$(curl -s https://backend-station.johann-lebel.fr/api/v1/status)
+          echo "API Status: $api_response"
+          
+          # Test 2: Metrics endpoint
+          curl -f --max-time 10 https://backend-station.johann-lebel.fr/metrics
+          echo "✅ Metrics endpoint accessible"
+          
+          # Test 3: Grafana
+          curl -f --max-time 10 https://grafana.johann-lebel.fr/api/health
+          echo "✅ Grafana accessible"
+          
+          # Test 4: Prometheus
+          curl -f --max-time 10 https://prometheus.johann-lebel.fr/-/healthy
+          echo "✅ Prometheus accessible"
+
+      - name: 📊 Deployment Summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Started**: ${{ env.DEPLOYMENT_START_TIME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Completed**: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- [Frontend](https://frontend-station.johann-lebel.fr)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Backend API](https://backend-station.johann-lebel.fr)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Grafana](https://grafana.johann-lebel.fr)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Prometheus](https://prometheus.johann-lebel.fr)" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📱 Slack Notification - Success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          username: 'GitHub Actions'
+          icon_emoji: ':rocket:'
+          title: '🎉 Station Traffeyère - Deployment Successful'
+          text: |
+            Deployment completed successfully!
+            • Environment: Production
+            • Branch: ${{ github.ref_name }}
+            • Commit: ${{ github.sha }}
+            • Actor: ${{ github.actor }}
+            
+            🌐 Services:
+            • Frontend: https://frontend-station.johann-lebel.fr
+            • Backend: https://backend-station.johann-lebel.fr
+            • Grafana: https://grafana.johann-lebel.fr
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: 📱 Slack Notification - Failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#deployments'
+          username: 'GitHub Actions'
+          icon_emoji: ':x:'
+          title: '🚨 Station Traffeyère - Deployment Failed'
+          text: |
+            Deployment failed!
+            • Environment: Production
+            • Branch: ${{ github.ref_name }}
+            • Commit: ${{ github.sha }}
+            • Actor: ${{ github.actor }}
+            
+            Please check the GitHub Actions logs for details.
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ==========================================================================
+  # ROLLBACK (Manual Trigger)
+  # ==========================================================================
+  rollback:
+    name: ↩️ Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'rollback'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ↩️ Trigger Coolify Rollback
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: '${{ secrets.COOLIFY_ROLLBACK_URL }}'
+          method: 'POST'
+          contentType: 'application/json'
+          data: '{"action": "rollback", "environment": "production"}'
+          bearerToken: ${{ secrets.COOLIFY_API_TOKEN }}
+
+      - name: 📱 Slack Notification - Rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              channel: '#deployments',
+              username: 'GitHub Actions',
+              icon_emoji: ':warning:',
+              attachments: [{
+                color: 'warning',
+                title: '↩️ Station Traffeyère - Rollback Triggered',
+                text: 'Production environment rollback has been initiated by ${{ github.actor }}'
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

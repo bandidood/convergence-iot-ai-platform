@@ -1,14 +1,20 @@
-# Configuration Prometheus - RNCP 39394
-# Monitoring Edge AI Engine + IoT Security
+# =============================================================================
+# Configuration Prometheus - Station Traffeyère IoT/AI Platform
+# Monitoring complet: Backend API, IoT, Edge AI, Infrastructure
+# Architecture Coolify Production - RNCP 39394
+# =============================================================================
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: 'station-traffeyere'
+    environment: 'production'
+    replica: '1'
 
-# Règles d'alertes
+# Configuration règles d'alerting
 rule_files:
-  - "rules.yaml"
-  - "station-traffeyere-alerts.yaml"
+  - "/etc/prometheus/rules/*.yml"
 
 # Configuration Alertmanager
 alerting:
@@ -17,60 +23,175 @@ alerting:
         - targets:
           - alertmanager:9093
 
-# Jobs de scraping métriques
+# Configuration des jobs de scraping
 scrape_configs:
-  # Monitoring Prometheus lui-même
+  # ==========================================================================
+  # PROMETHEUS SELF-MONITORING
+  # ==========================================================================
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
 
-  # Monitoring Node Exporter (système)
-  - job_name: 'node'
+  # ==========================================================================
+  # BACKEND API STATION TRAFFEYÈRE
+  # ==========================================================================
+  - job_name: 'station-backend-api'
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ['backend:8000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(http_requests_total|http_request_duration_seconds|http_requests_in_progress)'
+        target_label: __tmp_keep__
+        replacement: 'keep'
+    honor_labels: true
+    scheme: http
 
-  # Monitoring cAdvisor (containers)
-  - job_name: 'cadvisor'
+  # ==========================================================================
+  # IOT GENERATOR - 127 CAPTEURS
+  # ==========================================================================
+  - job_name: 'iot-generator'
     static_configs:
-      - targets: ['cadvisor:8080']
+      - targets: ['iot-generator:8090']
+    metrics_path: /metrics
+    scrape_interval: 5s
+    scrape_timeout: 3s
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(iot_sensor_readings_total|iot_sensor_value|iot_anomalies_detected_total|iot_generation_duration_seconds)'
+        target_label: __tmp_keep__
+        replacement: 'keep'
 
-  # Monitoring AI Engine
-  - job_name: 'ai-engine'
+  # ==========================================================================
+  # EDGE AI ENGINE
+  # ==========================================================================
+  - job_name: 'edge-ai-engine'
     static_configs:
-      - targets: ['ai-engine:8080']
-    metrics_path: '/metrics'
-    scrape_interval: 5s  # Plus fréquent pour IA temps réel
+      - targets: ['edge-ai:8091']
+    metrics_path: /metrics
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(ai_inference_duration_seconds|ai_model_accuracy|ai_predictions_total|ai_anomalies_detected_total)'
+        target_label: __tmp_keep__
+        replacement: 'keep'
 
-  # Monitoring base de données
-  - job_name: 'postgresql'
+  # ==========================================================================
+  # INFRASTRUCTURE MONITORING
+  # ==========================================================================
+  
+  # PostgreSQL + TimescaleDB
+  - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres:5432']
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    
+  # Redis Cache
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    scrape_timeout: 10s
 
-  # Monitoring MinIO
+  # InfluxDB Time Series
+  - job_name: 'influxdb'
+    static_configs:
+      - targets: ['influxdb:8086']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # MinIO Object Storage
   - job_name: 'minio'
     static_configs:
       - targets: ['minio:9000']
+    metrics_path: /minio/v2/metrics/cluster
+    scrape_interval: 30s
+    scrape_timeout: 10s
 
-  # Monitoring IoT Station Traffeyère - 127 capteurs
-  - job_name: 'station-traffeyere-iot'
+  # Nginx Reverse Proxy
+  - job_name: 'nginx-proxy'
     static_configs:
-      - targets: ['host.docker.internal:8090']
-    scrape_interval: 5s  # Données temps réel
-    scrape_timeout: 4s
-    metrics_path: /metrics
+      - targets: ['nginx-proxy:80']
+    metrics_path: /nginx_status
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # ==========================================================================
+  # SYSTEM MONITORING (si exporters disponibles)
+  # ==========================================================================
+  
+  # Node Exporter pour métriques système
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # cAdvisor pour métriques conteneurs
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'container_(cpu|memory|network|fs)_.*'
+        target_label: __tmp_keep__
+        replacement: 'keep'
+
+  # ==========================================================================
+  # BLACKBOX MONITORING - HEALTH CHECKS
+  # ==========================================================================
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://frontend-station.johann-lebel.fr/healthz
+        - https://backend-station.johann-lebel.fr/healthz
+        - https://grafana.johann-lebel.fr/api/health
+        - https://prometheus.johann-lebel.fr/-/healthy
+        - https://influxdb.johann-lebel.fr/health
+        - https://minio.johann-lebel.fr/minio/health/ready
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ==========================================================================
+  # CUSTOM METRICS - BUSINESS LOGIC
+  # ==========================================================================
+  
+  # Métriques métier Station d'épuration
+  - job_name: 'station-metrics'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics/station
+    scrape_interval: 60s
+    scrape_timeout: 15s
     honor_labels: true
-    metric_relabel_configs:
-      - source_labels: [__name__]
-        regex: 'station_traffeyere_.*'
-        action: keep  # Garde seulement nos métriques
 
-  # Monitoring Edge AI Engine local
-  - job_name: 'edge-ai-engine'
+  # Métriques de performance RNCP 39394
+  - job_name: 'rncp-metrics'
     static_configs:
-      - targets: ['host.docker.internal:8091']
-    scrape_interval: 1s  # Très fréquent pour edge latency
-    metrics_path: /metrics
+      - targets: ['backend:8000']
+    metrics_path: /metrics/rncp
+    scrape_interval: 60s
+    scrape_timeout: 15s
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: 'edge_ai_.*'
-        action: keep
+        regex: '(rncp_.*|mttr_.*|sla_.*|availability_.*)'
+        target_label: __tmp_keep__
+        replacement: 'keep'

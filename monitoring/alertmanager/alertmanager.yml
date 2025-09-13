@@ -1,0 +1,284 @@
+# Station Traffeyère IoT/AI Platform - AlertManager Configuration
+# Gestion des alertes et notifications via Slack
+
+global:
+  # Configuration globale
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@station-traffeyere.com'
+  smtp_auth_username: 'alertmanager@station-traffeyere.com'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  
+  # Templates pour les notifications
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Configuration des templates de messages
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Groupage des alertes
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook.slack'
+  routes:
+    # Alertes critiques - notification immédiate
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      group_interval: 5s
+      repeat_interval: 15m
+      
+    # Alertes sécurité - notification prioritaire
+    - match:
+        service: security
+      receiver: 'security-alerts'
+      group_wait: 30s
+      group_interval: 2m
+      repeat_interval: 30m
+      
+    # Alertes business critical - escalade immédiate
+    - match_re:
+        service: 'station-operations|water-quality|treatment-process'
+      receiver: 'business-critical'
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 10m
+      
+    # Alertes IoT/AI - monitoring spécialisé
+    - match_re:
+        service: 'iot-generator|edge-ai|iot-sensors'
+      receiver: 'iot-ai-alerts'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+      
+    # Alertes infrastructure - groupage standard
+    - match:
+        service: infrastructure
+      receiver: 'infrastructure-alerts'
+      group_wait: 5m
+      group_interval: 10m
+      repeat_interval: 2h
+      
+    # Alertes base de données
+    - match_re:
+        service: 'postgresql|redis|influxdb'
+      receiver: 'database-alerts'
+      group_wait: 1m
+      group_interval: 3m
+      repeat_interval: 30m
+
+# Inhibition rules - éviter les alertes redondantes
+inhibit_rules:
+  # Inhiber les alertes warning si critical existe
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+    
+  # Inhiber les alertes de service si le node est down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      service: '.*'
+    equal: ['instance']
+
+# Configuration des récepteurs de notifications
+receivers:
+  # Webhook par défaut vers Slack
+  - name: 'web.hook.slack'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#station-monitoring'
+        title: 'Station Traffeyère - Alerte Générale'
+        title_link: 'https://grafana.johann-lebel.fr'
+        text: >-
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          _Service:_ `{{ .Labels.service }}`
+          _Severity:_ `{{ .Labels.severity }}`
+          _Runbook:_ {{ .Labels.runbook }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: 'https://grafana.johann-lebel.fr'
+          - type: button
+            text: 'Runbook'
+            url: '{{ (index .Alerts 0).Labels.runbook }}'
+
+  # Alertes critiques - canal prioritaire
+  - name: 'critical-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#station-critical'
+        title: '🚨 ALERTE CRITIQUE - Station Traffeyère'
+        title_link: 'https://grafana.johann-lebel.fr'
+        text: >-
+          @here {{ range .Alerts }}
+          **CRITIQUE:** {{ .Annotations.summary }}
+          
+          📊 *Détails:* {{ .Annotations.description }}
+          🔧 *Service:* `{{ .Labels.service }}`
+          ⏰ *Depuis:* {{ .StartsAt.Format "15:04:05" }}
+          📚 *Runbook:* {{ .Labels.runbook }}
+          {{ end }}
+          
+          ⚠️ **Action immédiate requise**
+        color: 'danger'
+        actions:
+          - type: button
+            text: '📊 Grafana Dashboard'
+            url: 'https://grafana.johann-lebel.fr'
+          - type: button
+            text: '📚 Documentation'
+            url: '{{ (index .Alerts 0).Labels.runbook }}'
+          - type: button
+            text: '🔍 Prometheus'
+            url: 'https://prometheus.johann-lebel.fr'
+
+  # Alertes sécurité
+  - name: 'security-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#station-security'
+        title: '🔐 Alerte Sécurité - Station Traffeyère'
+        title_link: 'https://grafana.johann-lebel.fr'
+        text: >-
+          @channel {{ range .Alerts }}
+          **SÉCURITÉ:** {{ .Annotations.summary }}
+          
+          🛡️ *Détails:* {{ .Annotations.description }}
+          🎯 *Service:* `{{ .Labels.service }}`
+          📅 *Timestamp:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          📖 *Investigation:* {{ .Labels.runbook }}
+          {{ end }}
+          
+          🔍 **Analyse de sécurité requise**
+        color: 'warning'
+        actions:
+          - type: button
+            text: '🔐 Security Dashboard'
+            url: 'https://grafana.johann-lebel.fr/d/security/security-dashboard'
+          - type: button
+            text: '📋 Incident Response'
+            url: '{{ (index .Alerts 0).Labels.runbook }}'
+
+  # Alertes business critical
+  - name: 'business-critical'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#station-operations'
+        title: '💼 Alerte Opérationnelle Critique'
+        title_link: 'https://grafana.johann-lebel.fr'
+        text: >-
+          @here {{ range .Alerts }}
+          **OPÉRATIONS CRITIQUES:** {{ .Annotations.summary }}
+          
+          💧 *Impact:* {{ .Annotations.description }}
+          ⚙️ *Processus:* `{{ .Labels.service }}`
+          ⏱️ *Durée:* {{ .StartsAt.Format "15:04:05" }}
+          📋 *Procédure:* {{ .Labels.runbook }}
+          {{ end }}
+          
+          🏭 **Impact sur traitement d'eau - Intervention urgente**
+        color: 'danger'
+        actions:
+          - type: button
+            text: '🏭 Station Dashboard'
+            url: 'https://grafana.johann-lebel.fr/d/station/station-overview'
+          - type: button
+            text: '📊 Water Quality'
+            url: 'https://grafana.johann-lebel.fr/d/water/water-quality-dashboard'
+          - type: button
+            text: '⚡ Emergency Procedures'
+            url: '{{ (index .Alerts 0).Labels.runbook }}'
+
+  # Alertes IoT/AI
+  - name: 'iot-ai-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#station-iot-ai'
+        title: '🤖 Alerte IoT/IA - Edge Computing'
+        title_link: 'https://grafana.johann-lebel.fr'
+        text: >-
+          {{ range .Alerts }}
+          **IoT/IA:** {{ .Annotations.summary }}
+          
+          🔬 *Analyse:* {{ .Annotations.description }}
+          📡 *Composant:* `{{ .Labels.service }}`
+          🕐 *Détection:* {{ .StartsAt.Format "15:04:05" }}
+          🧠 *Diagnostic:* {{ .Labels.runbook }}
+          {{ end }}
+          
+          🎯 **Performance IA et capteurs IoT**
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: '🤖 AI Performance'
+            url: 'https://grafana.johann-lebel.fr/d/ai/edge-ai-performance'
+          - type: button
+            text: '📡 IoT Sensors'
+            url: 'https://grafana.johann-lebel.fr/d/iot/iot-sensors-dashboard'
+          - type: button
+            text: '📈 Analytics'
+            url: '{{ (index .Alerts 0).Labels.runbook }}'
+
+  # Alertes infrastructure
+  - name: 'infrastructure-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#station-infrastructure'
+        title: '🏗️ Infrastructure - Station Traffeyère'
+        title_link: 'https://grafana.johann-lebel.fr'
+        text: >-
+          {{ range .Alerts }}
+          **Infrastructure:** {{ .Annotations.summary }}
+          
+          📊 *Métriques:* {{ .Annotations.description }}
+          💻 *Ressource:* `{{ .Labels.service }}`
+          📅 *Depuis:* {{ .StartsAt.Format "15:04:05" }}
+          🔧 *Guide:* {{ .Labels.runbook }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: '🖥️ Infrastructure Dashboard'
+            url: 'https://grafana.johann-lebel.fr/d/infra/infrastructure-health'
+          - type: button
+            text: '📋 Maintenance Guide'
+            url: '{{ (index .Alerts 0).Labels.runbook }}'
+
+  # Alertes bases de données
+  - name: 'database-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#station-databases'
+        title: '🗄️ Base de Données - Alertes'
+        title_link: 'https://grafana.johann-lebel.fr'
+        text: >-
+          {{ range .Alerts }}
+          **Base de Données:** {{ .Annotations.summary }}
+          
+          💾 *Performance:* {{ .Annotations.description }}
+          🔍 *Service:* `{{ .Labels.service }}`
+          ⏰ *Timing:* {{ .StartsAt.Format "15:04:05" }}
+          📚 *Documentation:* {{ .Labels.runbook }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        actions:
+          - type: button
+            text: '💾 Database Dashboard'
+            url: 'https://grafana.johann-lebel.fr/d/db/database-performance'
+          - type: button
+            text: '🔧 DB Optimization'
+            url: '{{ (index .Alerts 0).Labels.runbook }}'
+          - type: button
+            text: '📊 Query Analysis'
+            url: 'https://grafana.johann-lebel.fr/d/queries/slow-queries'
