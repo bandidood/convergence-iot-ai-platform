@@ -294,7 +294,7 @@ $services = @(
     @{
         name = "backend"
         type = "application"
-        source = if ($GitRepository) { @{ type = "git"; repository = $GitRepository; branch = "main" } } else { @{ type = "dockerfile"; path = "./backend" } }
+        source = if ($GitRepository) { @{ type = "git"; repository = $GitRepository; branch = "master" } } else { @{ type = "dockerfile"; path = "./backend" } }
         env = @{
             DATABASE_URL = "postgresql://`${POSTGRES_USER}:`${POSTGRES_PASSWORD}@postgres:5432/`${POSTGRES_DB}"
             REDIS_URL = "redis://:`${REDIS_PASSWORD}@redis:6379/0"
@@ -308,7 +308,7 @@ $services = @(
     @{
         name = "frontend"
         type = "application"
-        source = if ($GitRepository) { @{ type = "git"; repository = $GitRepository; branch = "main" } } else { @{ type = "dockerfile"; path = "./frontend" } }
+        source = if ($GitRepository) { @{ type = "git"; repository = $GitRepository; branch = "master" } } else { @{ type = "dockerfile"; path = "./frontend" } }
         env = @{
             NODE_ENV = "production"
             NEXT_PUBLIC_API_URL = "https://api.`${DOMAIN_ROOT}"

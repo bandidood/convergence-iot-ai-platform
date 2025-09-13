@@ -96,7 +96,7 @@ services:
     source:
       type: git
       repository: ${GIT_REPOSITORY_URL}
-      branch: main
+      branch: master
       dockerfile: ./backend/Dockerfile
     name: backend-traffeyere
     build_command: "docker build -f backend/Dockerfile -t backend-traffeyere ."
