@@ -1,494 +1,273 @@
-# =============================================================================
-# DOCKER COMPOSE - Station Traffeyère IoT/AI Platform
-# Configuration Coolify Production - RNCP 39394
-# Domaines: frontend-station & backend-station.johann-lebel.fr
-# =============================================================================
-
 version: '3.8'
 
+# =============================================================================
+# DOCKER COMPOSE COOLIFY - Station Traffeyère IoT/AI Platform  
+# Compatible avec https://coolify.ccdigital.fr
+# Repository: https://github.com/bandidood/convergence-iot-ai-platform.git
+# =============================================================================
+
 services:
-  # ==========================================================================
-  # REVERSE PROXY NGINX - Point d'entrée SSL/TLS
-  # ==========================================================================
-  nginx-proxy:
-    image: nginx:1.25-alpine
-    container_name: station-nginx-proxy
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-traffeyere
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-station_traffeyere}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
-      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./proxy/ssl:/etc/nginx/ssl:ro
-      - proxy_logs:/var/log/nginx
+      - postgres_data:/var/lib/postgresql/data
     networks:
-      - public
-      - private
-    depends_on:
-      - frontend
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d station_traffeyere"]
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 128m
-          cpus: '0.2'
+      start_period: 30s
 
-  # ==========================================================================
-  # FRONTEND - React/Vite SPA
-  # ==========================================================================
-  frontend:
-    build:
-      context: ./services/frontend
-      dockerfile: Dockerfile
-      target: production
-      args:
-        VITE_API_URL: https://backend-station.johann-lebel.fr
-        VITE_WS_URL: wss://backend-station.johann-lebel.fr/ws
-        VITE_GRAFANA_URL: https://grafana.johann-lebel.fr
-        VITE_PROMETHEUS_URL: https://prometheus.johann-lebel.fr
-    container_name: station-frontend
+  # Cache Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis-traffeyere
     restart: unless-stopped
-    networks:
-      - private
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     volumes:
-      - frontend_logs:/var/log/nginx
+      - redis_data:/data
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 30s
-      timeout: 5s
-      start_period: 10s
+      timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: ${FRONTEND_MEMORY_LIMIT}
-          cpus: '0.5'
-    labels:
-      - coolify.managed=true
-      - coolify.name=station-frontend
-      - coolify.http.domain=frontend-station.johann-lebel.fr
-      - coolify.http.redirect=true
 
-  # ==========================================================================
-  # BACKEND API - FastAPI Python
-  # ==========================================================================
-  backend:
-    build:
-      context: ./services/backend
-      dockerfile: Dockerfile
-      target: production
-    container_name: station-backend
+  # Base de données temporelle InfluxDB
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: influxdb-traffeyere
     restart: unless-stopped
     environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-traffeyere}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_ADMIN_TOKEN}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    ports:
+      - "8086:8086"
+    networks:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.influxdb.rule=Host(`influx.traffeyere.ccdigital.fr`)"
+      - "traefik.http.routers.influxdb.tls=true"
+      - "traefik.http.routers.influxdb.tls.certresolver=letsencrypt"
+
+  # Message Broker MQTT
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto-traffeyere
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    networks:
+      - backend
+      - iot_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mqtt.rule=Host(`mqtt.traffeyere.ccdigital.fr`)"
+      - "traefik.http.routers.mqtt.tls=true"
+      - "traefik.http.routers.mqtt.tls.certresolver=letsencrypt"
+      - "traefik.http.services.mqtt.loadbalancer.server.port=9001"
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    container_name: backend-traffeyere
+    restart: unless-stopped
+    environment:
+      # Projet RNCP 39394
+      PROJECT_NAME: "Station Traffeyère IoT/AI Platform"
+      PROJECT_VERSION: "1.0.0"
+      RNCP_CODE: "39394"
+      
       # Base de données
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-station_traffeyere}
       
-      # Cache Redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       
-      # Time Series InfluxDB
-      INFLUXDB_HOST: influxdb
-      INFLUXDB_PORT: 8086
-      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
-      INFLUXDB_ORG: ${INFLUXDB_ORG}
-      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
-      
-      # Object Storage MinIO
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      
-      # Security
-      JWT_SECRET: ${JWT_SECRET}
-      API_SECRET_KEY: ${API_SECRET_KEY}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # InfluxDB
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_ADMIN_TOKEN}
+      INFLUX_ORG: ${INFLUX_ORG:-traffeyere}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
       
       # Application
-      FASTAPI_ENV: production
-      LOG_LEVEL: ${LOG_LEVEL}
-      DEBUG: ${DEBUG}
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      ENVIRONMENT: production
+      DEBUG: "false"
       
-      # Monitoring
-      PROMETHEUS_METRICS_ENABLED: true
-      SENTRY_DSN: ${SENTRY_DSN}
-    networks:
-      - private
+      # MQTT
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_user}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      
+      # Configuration métier
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
+      STATION_NAME: ${STATION_NAME:-Station Traffeyère}
+      STATION_LOCATION: ${STATION_LOCATION:-45.764043,4.835659}
+      
+      # API IA (optionnelles)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
     volumes:
       - backend_logs:/app/logs
-      - backend_uploads:/app/uploads
       - backend_models:/app/models
+      - backend_uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    networks:
+      - backend
+      - iot_network
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      influxdb:
-        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.traffeyere.ccdigital.fr`)"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "--spider", "http://localhost:8000/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
+      retries: 3
       start_period: 60s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: ${BACKEND_MEMORY_LIMIT}
-          cpus: '1.0'
-    labels:
-      - coolify.managed=true
-      - coolify.name=station-backend
-      - coolify.http.domain=backend-station.johann-lebel.fr
-      - coolify.http.redirect=true
 
-  # ==========================================================================
-  # DATABASE - PostgreSQL + TimescaleDB
-  # ==========================================================================
-  postgres:
-    image: timescale/timescaledb:2.14.2-pg15
-    container_name: station-postgres
+  # Frontend Next.js
+  frontend:
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.traffeyere.ccdigital.fr
+        - NEXT_PUBLIC_WS_URL=wss://ws.traffeyere.ccdigital.fr
+        - NEXT_PUBLIC_MQTT_WS_URL=wss://mqtt.traffeyere.ccdigital.fr
+    container_name: frontend-traffeyere
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGDATA: /var/lib/postgresql/data/pgdata
-      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=peer"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - postgres_logs:/var/log/postgresql
-      - ./database/init:/docker-entrypoint-initdb.d:ro
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://api.traffeyere.ccdigital.fr
+      NEXT_PUBLIC_WS_URL: wss://ws.traffeyere.ccdigital.fr
+      NEXT_PUBLIC_MQTT_WS_URL: wss://mqtt.traffeyere.ccdigital.fr
+      NEXT_PUBLIC_ENVIRONMENT: production
+      
+      # Branding RNCP
+      NEXT_PUBLIC_PROJECT_NAME: "Station Traffeyère IoT/AI Platform"
+      NEXT_PUBLIC_RNCP_CODE: "39394"
+      NEXT_PUBLIC_VERSION: "1.0.0"
+    ports:
+      - "3000:3000"
     networks:
-      - private
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: ${POSTGRES_MEMORY_LIMIT}
-          cpus: '1.0'
-    security_opt:
-      - no-new-privileges:true
-
-  # ==========================================================================
-  # CACHE - Redis
-  # ==========================================================================
-  redis:
-    image: redis:7.2-alpine
-    container_name: station-redis
-    restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --save 900 1 --save 300 10
-    volumes:
-      - redis_data:/data
-      - redis_logs:/var/log/redis
-    networks:
-      - private
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: ${REDIS_MEMORY_LIMIT}
-          cpus: '0.5'
-    security_opt:
-      - no-new-privileges:true
-
-  # ==========================================================================
-  # TIME SERIES DB - InfluxDB
-  # ==========================================================================
-  influxdb:
-    image: influxdb:2.7-alpine
-    container_name: station-influxdb
-    restart: unless-stopped
-    environment:
-      DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER}
-      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD}
-      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
-      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
-    volumes:
-      - influxdb_data:/var/lib/influxdb2
-      - influxdb_config:/etc/influxdb2
-    networks:
-      - private
-    healthcheck:
-      test: ["CMD", "influx", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: ${INFLUXDB_MEMORY_LIMIT}
-          cpus: '0.5'
+      - frontend
     labels:
-      - coolify.managed=true
-      - coolify.name=station-influxdb
-      - coolify.http.domain=influxdb.johann-lebel.fr
-      - coolify.http.port=8086
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`traffeyere.ccdigital.fr`) || Host(`www.traffeyere.ccdigital.fr`) || Host(`app.traffeyere.ccdigital.fr`)"
+      - "traefik.http.routers.app.tls=true"
+      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      # Redirect www to non-www
+      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www.(.*)"
+      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
+      - "traefik.http.routers.app.middlewares=www-redirect"
 
-  # ==========================================================================
-  # OBJECT STORAGE - MinIO S3
-  # ==========================================================================
-  minio:
-    image: minio/minio:RELEASE.2024-01-28T22-35-53Z
-    container_name: station-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - minio_data:/data
-      - ./storage/minio/init:/docker-entrypoint-initdb.d:ro
-    networks:
-      - private
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: ${MINIO_MEMORY_LIMIT}
-          cpus: '0.5'
-    labels:
-      - coolify.managed=true
-      - coolify.name=station-minio
-      - coolify.http.domain=minio.johann-lebel.fr
-      - coolify.http.port=9001
-
-  # ==========================================================================
-  # MONITORING - Prometheus
-  # ==========================================================================
-  prometheus:
-    image: prom/prometheus:v2.48.0
-    container_name: station-prometheus
-    restart: unless-stopped
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION}'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-      - '--web.external-url=${PROMETHEUS_URL}'
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
-      - prometheus_data:/prometheus
-    networks:
-      - private
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: ${PROMETHEUS_MEMORY_LIMIT}
-          cpus: '1.0'
-    labels:
-      - coolify.managed=true
-      - coolify.name=station-prometheus
-      - coolify.http.domain=prometheus.johann-lebel.fr
-      - coolify.http.port=9090
-
-  # ==========================================================================
-  # VISUALIZATION - Grafana
-  # ==========================================================================
+  # Monitoring Grafana
   grafana:
-    image: grafana/grafana:10.2.0
-    container_name: station-grafana
+    image: grafana/grafana:latest
+    container_name: grafana-traffeyere
     restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY}
-      GF_SERVER_ROOT_URL: ${GRAFANA_URL}
-      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_DOMAIN: grafana.traffeyere.ccdigital.fr
+      GF_SERVER_ROOT_URL: https://grafana.traffeyere.ccdigital.fr
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: postgres:5432
+      GF_DATABASE_NAME: grafana
+      GF_DATABASE_USER: grafana
+      GF_DATABASE_PASSWORD: ${GRAFANA_DB_PASSWORD}
+      
+      # Branding
+      GF_BRANDING_TITLE: "Station Traffeyère Monitoring - RNCP 39394"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
     networks:
-      - private
+      - backend
+      - frontend
     depends_on:
-      - prometheus
-      - influxdb
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: ${GRAFANA_MEMORY_LIMIT}
-          cpus: '0.5'
+      - postgres
     labels:
-      - coolify.managed=true
-      - coolify.name=station-grafana
-      - coolify.http.domain=grafana.johann-lebel.fr
-      - coolify.http.port=3000
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.traffeyere.ccdigital.fr`)"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
-  # ==========================================================================
-  # IOT SERVICES - Générateur de données + Edge AI
-  # ==========================================================================
-  iot-generator:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    container_name: station-iot-generator
-    restart: unless-stopped
-    command: ["python", "scripts/iot_data_generator.py"]
-    environment:
-      IOT_GENERATOR_PORT: ${IOT_GENERATOR_PORT}
-      IOT_SENSORS_COUNT: ${IOT_SENSORS_COUNT}
-      PROMETHEUS_GATEWAY: prometheus:9091
-      INFLUXDB_URL: http://influxdb:8086
-      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
-      INFLUXDB_ORG: ${INFLUXDB_ORG}
-      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
-    volumes:
-      - iot_data:/app/data
-      - iot_models:/app/models
-    networks:
-      - private
-    depends_on:
-      - influxdb
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "--spider", "http://localhost:8090/metrics"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 512m
-          cpus: '0.5'
-
-  edge-ai:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    container_name: station-edge-ai
-    restart: unless-stopped
-    command: ["python", "scripts/edge_ai_engine.py"]
-    environment:
-      EDGE_AI_PORT: ${EDGE_AI_PORT}
-      AI_MODEL_TYPE: ${AI_MODEL_TYPE}
-      LATENCY_TARGET_MS: ${LATENCY_TARGET_MS}
-      PROMETHEUS_GATEWAY: prometheus:9091
-    volumes:
-      - ai_models:/app/models
-      - ai_data:/app/data
-    networks:
-      - private
-    depends_on:
-      - iot-generator
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "--spider", "http://localhost:8091/metrics"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: '1.0'
-
-# =============================================================================
-# NETWORKS
-# =============================================================================
-networks:
-  public:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-  private:
-    driver: bridge
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.21.0.0/16
-
-# =============================================================================
-# VOLUMES PERSISTANTS
-# =============================================================================
 volumes:
-  # Base de données
   postgres_data:
     driver: local
-  postgres_logs:
-    driver: local
   redis_data:
-    driver: local
-  redis_logs:
     driver: local
   influxdb_data:
     driver: local
   influxdb_config:
     driver: local
-  
-  # Storage
-  minio_data:
+  mosquitto_data:
     driver: local
-  
-  # Monitoring
-  prometheus_data:
+  mosquitto_logs:
     driver: local
-  grafana_data:
-    driver: local
-  
-  # Application
   backend_logs:
-    driver: local
-  backend_uploads:
     driver: local
   backend_models:
     driver: local
-  frontend_logs:
+  backend_uploads:
     driver: local
-  
-  # Proxy
-  proxy_logs:
+  grafana_data:
     driver: local
-  
-  # IoT & AI
-  iot_data:
-    driver: local
-  iot_models:
-    driver: local
-  ai_models:
-    driver: local
-  ai_data:
-    driver: local
+
+networks:
+  backend:
+    driver: bridge
+    internal: false
+  frontend:
+    driver: bridge
+    internal: false
+  iot_network:
+    driver: bridge
+    internal: false
