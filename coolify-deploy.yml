@@ -158,7 +158,7 @@ services:
     type: application
     source:
       type: git
-      repository: ${https://github.com/bandidood/convergence-iot-ai-platform.git}
+      repository: ${GIT_REPOSITORY_URL=https://github.com/bandidood/convergence-iot-ai-platform.git}
       branch: master
       dockerfile: ./frontend/Dockerfile
     name: frontend-traffeyere
@@ -172,7 +172,7 @@ services:
     memory: 512
     cpu: 0.5
     domains:
-      - "${DOMAIN_ROOT}"
+      - "${DOMAIN_ROOT=https://coolify.ccdigital.fr/}"
       - "www.${DOMAIN_ROOT}"
       - "app.${DOMAIN_ROOT}"
     ports:
