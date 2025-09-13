@@ -158,7 +158,7 @@ services:
     type: application
     source:
       type: git
-      repository: ${GIT_REPOSITORY_URL}
+      repository: ${https://github.com/bandidood/convergence-iot-ai-platform.git}
       branch: master
       dockerfile: ./frontend/Dockerfile
     name: frontend-traffeyere
