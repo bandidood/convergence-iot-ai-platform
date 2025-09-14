@@ -1,6 +1,6 @@
 # =============================================================================
-# DOCKER COMPOSE COOLIFY FIXED - Station Traffeyère IoT/AI Platform
-# Configuration corrigée pour résoudre les erreurs de déploiement - RNCP 39394
+# DOCKER COMPOSE COOLIFY NO PORTS - Station Traffeyère IoT/AI Platform
+# Configuration Coolify sans ports exposés (reverse proxy auto) - RNCP 39394
 # =============================================================================
 
 services:
@@ -111,8 +111,7 @@ services:
       - backend_logs:/app/logs
       - backend_models:/app/models
       - backend_uploads:/app/uploads
-    expose:
-      - "8000"
+    # Pas de ports - Coolify gère le reverse proxy automatiquement
     depends_on:
       - postgres
       - redis
@@ -123,8 +122,7 @@ services:
       context: .
       dockerfile: ./services/frontend/Dockerfile
     restart: unless-stopped
-    expose:
-      - "80"
+    # Pas de ports - Coolify gère le reverse proxy automatiquement
     depends_on:
       - backend
 
