@@ -47,7 +47,7 @@ RUN pip install --no-cache-dir --upgrade \
 
 # Copie requirements et installation dépendances
 WORKDIR /app
-COPY requirements.txt .
+COPY services/backend/requirements.txt .
 
 # Installation dépendances Python avec cache pip
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -70,6 +70,9 @@ ENV TZ=Europe/Paris
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
+    netcat-openbsd \
+    postgresql-client \
+    redis-tools \
     libpq5 \
     libffi8 \
     libssl3 \
@@ -91,7 +94,7 @@ WORKDIR /app
 RUN chown -R appuser:appgroup /app
 
 # Copie du code source avec permissions
-COPY --chown=appuser:appgroup . .
+COPY --chown=appuser:appgroup services/backend/ .
 
 # Création dossiers nécessaires
 RUN mkdir -p /app/logs /app/models /app/data /app/uploads && \
@@ -133,31 +136,15 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Port d'exposition
 EXPOSE 8000
 
-# Utilisateur non-root
-USER appuser
-
 # Signal handling pour arrêt gracieux
 STOPSIGNAL SIGTERM
 
 # Script de démarrage avec gestion gracieuse
-COPY --chown=appuser:appgroup docker-entrypoint.sh /app/
+COPY --chown=appuser:appgroup services/backend/docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Point d'entrée
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# Utilisateur non-root (à la fin)
+USER appuser
 
-# Commande par défaut - production avec Gunicorn + Uvicorn
-CMD ["gunicorn", "main:app", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "4", \
-     "--worker-tmp-dir", "/dev/shm", \
-     "--worker-connections", "1024", \
-     "--max-requests", "1000", \
-     "--max-requests-jitter", "100", \
-     "--timeout", "120", \
-     "--keepalive", "2", \
-     "--preload", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "--log-level", "info"]
+# Point d'entrée - utilisation directe du Python
+CMD ["python", "main.py"]

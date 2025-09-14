@@ -1,44 +1,32 @@
 # =============================================================================
 # Backend Requirements - Station Traffeyère IoT/AI Platform
-# FastAPI + IoT + Edge AI + Monitoring Stack
+# FastAPI + IoT + Edge AI + Monitoring Stack - Version Simplifiée
 # =============================================================================
 
 # === CORE WEB FRAMEWORK ===
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 gunicorn==21.2.0
-starlette==0.27.0
 pydantic==2.5.0
 pydantic-settings==2.0.3
 
 # === DATABASE & ORM ===
-sqlalchemy==2.0.23
-alembic==1.12.1
+sqlalchemy==1.4.53     # Version compatible avec databases
 asyncpg==0.29.0        # PostgreSQL async driver
 psycopg2-binary==2.9.9  # PostgreSQL sync driver
-databases[postgresql]==0.8.0
 
 # === CACHE & SESSION ===
-redis[hiredis]==5.0.1
-aioredis==2.0.1
+redis==5.0.1
 
 # === TIME SERIES DATABASE ===
 influxdb-client==1.39.0
 
-# === OBJECT STORAGE ===
-minio==7.2.0
-boto3==1.34.0
-botocore==1.34.0
-
 # === HTTP CLIENT ===
 httpx==0.25.2
-aiohttp==3.9.1
 requests==2.31.0
 
 # === WEBSOCKET & REAL-TIME ===
 websockets==12.0
-python-socketio==5.10.0
-python-engineio==4.7.1
 
 # === DATA PROCESSING ===
 pandas==2.1.3
@@ -48,93 +36,29 @@ scipy==1.11.4
 # === MACHINE LEARNING & AI ===
 scikit-learn==1.3.2
 joblib==1.3.2
-shap==0.43.0           # Explainable AI
-lightgbm==4.1.0       # Gradient boosting
-xgboost==2.0.2        # Extreme gradient boosting
-catboost==1.2.2       # Categorical boosting
 
 # === IOT & SENSOR DATA ===
 paho-mqtt==1.6.1       # MQTT client
-modbus-tk==1.1.3       # Modbus protocol
-pyserial==3.5          # Serial communication
 
 # === MONITORING & METRICS ===
 prometheus-client==0.19.0
-prometheus-fastapi-instrumentator==6.1.0
-opentelemetry-api==1.21.0
-opentelemetry-sdk==1.21.0
-opentelemetry-instrumentation-fastapi==0.42b0
-opentelemetry-exporter-prometheus==1.12.0rc1
-
-# === LOGGING & TRACING ===
-structlog==23.2.0
-loguru==0.7.2
-sentry-sdk[fastapi]==1.39.1
 
 # === AUTHENTICATION & SECURITY ===
-python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
-cryptography==41.0.8
-
-# === TASK QUEUE ===
-celery[redis]==5.3.4
-kombu==5.3.4
-
-# === VALIDATION & SERIALIZATION ===
-marshmallow==3.20.2
-cerberus==1.3.5
-jsonschema==4.20.0
+cryptography==42.0.8
 
 # === CONFIGURATION ===
 python-dotenv==1.0.0
-dynaconf==3.2.4
 pyyaml==6.0.1
-toml==0.10.2
 
 # === DATE & TIME ===
 python-dateutil==2.8.2
 pytz==2023.3.post1
-arrow==1.3.0
 
 # === UTILITIES ===
 click==8.1.7           # CLI utilities
-rich==13.7.0           # Rich terminal output
-typer==0.9.0           # CLI framework
 tenacity==8.2.3        # Retry library
-
-# === TESTING ===
-pytest==7.4.3
-pytest-asyncio==0.22.0
-pytest-cov==4.1.0
-httpx==0.25.2          # Test client
-factory-boy==3.3.0
-faker==20.1.0
-
-# === DEVELOPMENT ===
-black==23.11.0         # Code formatter
-isort==5.12.0          # Import sorter
-flake8==6.1.0          # Linter
-mypy==1.7.1            # Type checker
-pre-commit==3.6.0      # Git hooks
-
-# === EMAIL ===
-fastapi-mail==1.4.1
-jinja2==3.1.2
-
-# === FILE PROCESSING ===
-openpyxl==3.1.2        # Excel files
-pillow==10.1.0         # Image processing
-
-# === GEOSPATIAL (for IoT location data) ===
-geopy==2.4.1
-shapely==2.0.2
 
 # === PERFORMANCE ===
 orjson==3.9.10         # Fast JSON serializer
-ujson==5.8.0           # Ultra-fast JSON
-msgpack==1.0.7         # MessagePack serializer
-
-# === DOCUMENTATION ===
-mkdocs==1.5.3
-mkdocs-material==9.4.8
