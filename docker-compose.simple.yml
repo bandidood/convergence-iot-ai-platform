@@ -1,0 +1,196 @@
+version: '3.8'
+
+networks:
+  iot-network:
+    driver: bridge
+
+volumes:
+  mqtt_data:
+    driver: local
+  redis_data:
+    driver: local
+
+services:
+  # =====================================================================================
+  # MQTT BROKER - Eclipse Mosquitto
+  # =====================================================================================
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: station-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # WebSocket
+    volumes:
+      - mqtt_data:/mosquitto/data
+    networks:
+      - iot-network
+    command: >
+      sh -c '
+      echo "listener 1883" > /mosquitto/config/mosquitto.conf &&
+      echo "allow_anonymous true" >> /mosquitto/config/mosquitto.conf &&
+      echo "listener 9001" >> /mosquitto/config/mosquitto.conf &&
+      echo "protocol websockets" >> /mosquitto/config/mosquitto.conf &&
+      mosquitto -c /mosquitto/config/mosquitto.conf
+      '
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "test", "-m", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================  
+  # REDIS CACHE - Pour données temps réel
+  # =====================================================================================
+  redis-cache:
+    image: redis:7-alpine
+    container_name: station-redis-cache
+    restart: unless-stopped
+    command: redis-server --requirepass redis_secure_2024 --maxmemory 256mb
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # DASHBOARD MONITORING - Interface web simple
+  # =====================================================================================
+  monitoring-dashboard:
+    build:
+      context: ./monitoring/dashboard
+      dockerfile: Dockerfile
+    container_name: station-monitoring-dashboard
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # IOT SIMULATOR - Générateur de données (Python simple)
+  # =====================================================================================
+  iot-simulator:
+    image: python:3.11-slim
+    container_name: station-iot-simulator
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - redis-cache
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - REDIS_HOST=redis-cache
+      - REDIS_PORT=6379
+      - SENSOR_COUNT=127
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    working_dir: /app
+    command: |
+      bash -c '
+      pip install paho-mqtt redis numpy faker
+      cat > /app/simulate.py << "EOF"
+      import time, json, random
+      from datetime import datetime
+      import paho.mqtt.client as mqtt
+      
+      print("🚀 Simulation IoT démarrée - 127 capteurs")
+      
+      client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "station-simulator")
+      client.connect("mqtt-broker", 1883, 60)
+      
+      zones = ["entree", "pretraitement", "bassin_aeration", "clarificateur", "traitement_boues", "sortie", "equipements"]
+      
+      while True:
+          for sensor_id in range(1, 128):
+              data = {
+                  "sensor_id": sensor_id,
+                  "timestamp": datetime.now().isoformat(),
+              "zone": zones[min((sensor_id-1) // 18, len(zones)-1)],
+                  "ph": round(7.2 + random.uniform(-0.3, 0.3), 2),
+                  "temperature": round(16.5 + random.uniform(-2, 3), 1),
+                  "o2_dissous": round(4.2 + random.uniform(-0.5, 1.0), 2),
+                  "turbidite": round(12.3 + random.uniform(-3, 5), 1),
+                  "debit": round(2400 + random.uniform(-100, 200), 0),
+                  "anomaly_score": random.random()
+              }
+              
+              if random.random() < 0.05:
+                  data["anomaly"] = {"type": "sensor_drift", "severity": "medium"}
+                  data["ph"] += random.uniform(-0.8, 0.8)
+              
+              topic = f"station/traffeyere/sensors/{sensor_id:03d}/data"
+              client.publish(topic, json.dumps(data))
+          
+          current_time = datetime.now().strftime("%H:%M:%S")
+          print(f"📡 Cycle publié: 127 capteurs - {current_time}")
+          time.sleep(5)
+      EOF
+      python /app/simulate.py
+      '
+    networks:
+      - iot-network
+
+  # =====================================================================================
+  # XAI BACKEND - Assistant vocal intelligent
+  # =====================================================================================
+  xai-backend:
+    build:
+      context: ./interfaces/voice-assistant-xia
+      dockerfile: Dockerfile.backend
+    container_name: station-xai-backend
+    restart: unless-stopped
+    depends_on:
+      - mqtt-broker
+      - redis-cache
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+      - REDIS_HOST=redis-cache
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_secure_2024
+    ports:
+      - "5000:5000"   # API REST
+      - "5001:5001"   # WebSocket
+    networks:
+      - iot-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================================================================
+  # XAI FRONTEND - Interface web simple 
+  # =====================================================================================
+  xai-frontend:
+    build:
+      context: ./interfaces/voice-assistant-xia
+      dockerfile: Dockerfile.frontend
+    container_name: station-xai-frontend
+    restart: unless-stopped
+    depends_on:
+      - xai-backend
+    ports:
+      - "3000:80"
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

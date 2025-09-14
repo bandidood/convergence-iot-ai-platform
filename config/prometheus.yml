@@ -1,0 +1,62 @@
+# =============================================================================
+# CONFIGURATION PROMETHEUS - Station Traffeyère IoT/AI Platform
+# Monitoring et métriques - RNCP 39394
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Configuration des alertes (optionnel)
+rule_files:
+  # - "alert_rules.yml"
+
+# Configuration Alertmanager (optionnel)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Configuration des targets à monitorer
+scrape_configs:
+  # Prometheus lui-même
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter (métriques système)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Backend FastAPI
+  - job_name: 'backend'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL Exporter (si configuré)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 60s
+
+  # Redis Exporter (si configuré)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 60s
+
+  # InfluxDB (métriques internes)
+  - job_name: 'influxdb'
+    static_configs:
+      - targets: ['influxdb:8086']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+
+  # MQTT Mosquitto (si configuré avec métriques)
+  - job_name: 'mosquitto'
+    static_configs:
+      - targets: ['mosquitto:1883']
+    scrape_interval: 60s

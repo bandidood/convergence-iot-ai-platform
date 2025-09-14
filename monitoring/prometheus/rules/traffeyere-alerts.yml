@@ -1,0 +1,328 @@
+# =============================================================================
+# TRAFFEYERE ALERTING RULES - Station IoT/AI Platform
+# Règles d'alerting pour RNCP 39394 - Performance et SLA
+# =============================================================================
+
+groups:
+  # ==========================================================================
+  # EDGE AI PERFORMANCE - Latence P95 < 0.28ms (CRITIQUE)
+  # ==========================================================================
+  - name: edge-ai-performance
+    rules:
+      - alert: EdgeAILatencyP95High
+        expr: histogram_quantile(0.95, sum(rate(ai_inference_duration_seconds_bucket[1m])) by (le)) * 1000 > 0.28
+        for: 10s
+        labels:
+          severity: critical
+          component: edge-ai
+          rncp: "39394"
+        annotations:
+          summary: "🚨 CRITIQUE - Latence Edge AI P95 dépassée"
+          description: |
+            La latence P95 des inférences Edge AI est de {{ $value }}ms, 
+            dépassant le seuil RNCP 39394 de 0.28ms.
+            
+            **Impact**: Performance dégradée du moteur d'IA
+            **Action**: Vérifier charge CPU, optimiser modèle
+            **SLA Impact**: Oui - Objectif temps réel compromis
+
+      - alert: EdgeAIAnomalyDetectionDown
+        expr: up{job="edge-ai-engine"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: edge-ai
+        annotations:
+          summary: "🔥 PANNE - Edge AI Engine hors service"
+          description: |
+            Le moteur Edge AI de détection d'anomalies est indisponible.
+            Perte de capacité d'analyse temps réel des 127 capteurs.
+
+      - alert: EdgeAIThroughputLow
+        expr: rate(ai_predictions_total[5m]) < 20
+        for: 2m
+        labels:
+          severity: warning
+          component: edge-ai
+        annotations:
+          summary: "⚠️ Throughput Edge AI réduit"
+          description: |
+            Débit d'inférences IA: {{ $value }} req/sec (< 20 req/sec attendues)
+            127 capteurs × 0.2Hz = 25.4 req/sec normal
+
+  # ==========================================================================
+  # IOT SENSORS & DATA PIPELINE
+  # ==========================================================================
+  - name: iot-sensors
+    rules:
+      - alert: IoTSensorDataLoss
+        expr: rate(iot_sensor_readings_total[5m]) < 20
+        for: 2m
+        labels:
+          severity: warning
+          component: iot
+        annotations:
+          summary: "📡 Perte de données capteurs IoT"
+          description: |
+            Débit de réception: {{ $value }} lectures/sec
+            Attendu: ~25.4 lectures/sec (127 capteurs × 0.2Hz)
+
+      - alert: IoTGeneratorDown
+        expr: up{job="iot-generator"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: iot
+        annotations:
+          summary: "🚨 Générateur IoT arrêté"
+          description: "Simulation des 127 capteurs interrompue"
+
+      - alert: MQTTBrokerDown
+        expr: up{job="mosquitto"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: mqtt
+        annotations:
+          summary: "📮 MQTT Broker indisponible"
+          description: "Communication IoT interrompue - Broker MQTT down"
+
+      - alert: HighAnomalyRate
+        expr: rate(iot_anomalies_detected_total[10m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: iot
+        annotations:
+          summary: "🔍 Taux d'anomalies élevé détecté"
+          description: |
+            {{ $value }} anomalies/min détectées (seuil: 5/min)
+            Possible dysfonctionnement station ou attaque
+
+  # ==========================================================================
+  # API BACKEND PERFORMANCE
+  # ==========================================================================
+  - name: api-performance
+    rules:
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le)) > 1.0
+        for: 2m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "🐌 Latence API élevée"
+          description: |
+            Latence P95 API: {{ $value }}s (seuil: 1.0s)
+            Impact expérience utilisateur possible
+
+      - alert: APIErrorRateHigh
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "❌ Taux d'erreur API critique"
+          description: |
+            {{ $value | humanizePercentage }} erreurs 5xx
+            Seuil critique: 5% dépassé
+
+      - alert: APIBackendDown
+        expr: up{job="station-backend-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "🔥 Backend API indisponible"
+          description: "API Station Traffeyère complètement down"
+
+  # ==========================================================================
+  # INFRASTRUCTURE & DATABASES
+  # ==========================================================================
+  - name: infrastructure
+    rules:
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "🗄️ PostgreSQL indisponible"
+          description: "Base de données principale hors service"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "🔴 Redis Cache indisponible"
+          description: "Cache et sessions utilisateur perdus"
+
+      - alert: InfluxDBDown
+        expr: up{job="influxdb"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: timeseries
+        annotations:
+          summary: "📊 InfluxDB indisponible"
+          description: "Stockage time-series IoT compromis"
+
+      - alert: MinIODown
+        expr: up{job="minio"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "🪣 MinIO S3 indisponible"
+          description: "Stockage objet (modèles IA, backups) inaccessible"
+
+      - alert: HighDiskUsage
+        expr: (100 - (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "💾 Espace disque faible"
+          description: |
+            Utilisation disque: {{ $value }}% (seuil: 85%)
+            Partition: {{ $labels.mountpoint }}
+
+  # ==========================================================================
+  # SLA & BUSINESS METRICS - RNCP 39394
+  # ==========================================================================
+  - name: sla-rncp-39394
+    rules:
+      - alert: SLAAvailabilityLow
+        expr: avg_over_time(up[24h]) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          component: sla
+          rncp: "39394"
+        annotations:
+          summary: "📉 SLA 99.9% compromise"
+          description: |
+            Disponibilité 24h: {{ $value | humanizePercentage }}
+            Objectif RNCP 39394: 99.9% minimum
+            
+            **Risque**: Non-conformité exigences projet
+
+      - alert: MTTRObjectiveExceeded
+        expr: mttr_seconds / 60 > 11.3
+        for: 1m
+        labels:
+          severity: critical
+          component: sla
+          rncp: "39394"
+        annotations:
+          summary: "⏱️ MTTR objectif dépassé"
+          description: |
+            MTTR actuel: {{ $value }} minutes
+            Objectif RNCP: < 11.3 minutes
+            
+            **Impact**: SLA 99.9% menacé
+
+      - alert: WebSocketLatencyHigh
+        expr: websocket_message_latency_p95 > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          component: websocket
+          rncp: "39394"
+        annotations:
+          summary: "🔌 Latence WebSocket élevée"
+          description: |
+            Latence P95 WebSocket: {{ $value }}s
+            Objectif: < 50ms pour temps réel
+            
+            **Impact**: Dashboard temps réel dégradé
+
+  # ==========================================================================
+  # SECURITY & MONITORING
+  # ==========================================================================
+  - name: security-monitoring
+    rules:
+      - alert: UnauthorizedAPIAccess
+        expr: rate(http_requests_total{status="401"}[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "🔐 Tentatives d'accès non autorisées"
+          description: |
+            {{ $value }} tentatives/sec d'accès 401
+            Possible tentative d'intrusion
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "🎯 Cible Prometheus indisponible"
+          description: |
+            Target: {{ $labels.job }}
+            Instance: {{ $labels.instance }}
+            Perte de visibilité monitoring
+
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "📊 Grafana Dashboard indisponible"
+          description: "Interface de monitoring inaccessible"
+
+  # ==========================================================================
+  # CUSTOM BUSINESS RULES - STATION D'ÉPURATION
+  # ==========================================================================  
+  - name: station-business
+    rules:
+      - alert: WaterQualityAlert
+        expr: water_quality_index < 0.8
+        for: 5m
+        labels:
+          severity: critical
+          component: water-treatment
+        annotations:
+          summary: "🚰 ALERTE - Qualité eau dégradée"
+          description: |
+            Index qualité: {{ $value }} (seuil: 0.8)
+            Station d'épuration en anomalie critique
+
+      - alert: PumpFailure
+        expr: pump_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: pumps
+        annotations:
+          summary: "⚙️ PANNE - Pompe d'épuration arrêtée"
+          description: |
+            Pompe ID: {{ $labels.pump_id }}
+            Arrêt critique du processus d'épuration
+
+      - alert: ChemicalLevelLow
+        expr: chemical_level_percent < 20
+        for: 10m
+        labels:
+          severity: warning
+          component: chemicals
+        annotations:
+          summary: "🧪 Niveau chimique bas"
+          description: |
+            Produit: {{ $labels.chemical_type }}
+            Niveau: {{ $value }}% (seuil: 20%)
+            Réapprovisionnement requis

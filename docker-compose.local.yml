@@ -1,0 +1,244 @@
+# =============================================================================
+# DOCKER COMPOSE LOCAL - Station Traffeyère IoT/AI Platform
+# Configuration pour tests locaux Windows - RNCP 39394
+# =============================================================================
+
+services:
+  # Base de données PostgreSQL + TimescaleDB
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-station_traffeyere}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-StationTraffeyerePostgres2024}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Cache Redis
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Base de données temporelle InfluxDB
+  influxdb:
+    image: influxdb:2.7-alpine
+    restart: unless-stopped
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD:-StationTraffeyereInflux2024}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-traffeyere}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_ADMIN_TOKEN:-StationTraffeyereToken2024}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    ports:
+      - "8086:8086"
+
+  # Message Broker MQTT
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    command: |
+      sh -c "
+      mkdir -p /mosquitto/config &&
+      echo 'listener 1883' > /mosquitto/config/mosquitto.conf &&
+      echo 'allow_anonymous true' >> /mosquitto/config/mosquitto.conf &&
+      echo 'persistence true' >> /mosquitto/config/mosquitto.conf &&
+      echo 'persistence_location /mosquitto/data/' >> /mosquitto/config/mosquitto.conf &&
+      echo 'listener 9001' >> /mosquitto/config/mosquitto.conf &&
+      echo 'protocol websockets' >> /mosquitto/config/mosquitto.conf &&
+      mosquitto -c /mosquitto/config/mosquitto.conf
+      "
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: .
+      dockerfile: ./services/backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Projet RNCP 39394
+      PROJECT_NAME: "Station Traffeyère IoT/AI Platform"
+      PROJECT_VERSION: "1.0.0"
+      RNCP_CODE: "39394"
+      
+      # Base de données
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-StationTraffeyerePostgres2024}@postgres:5432/${POSTGRES_DB:-station_traffeyere}
+      
+      # Redis (sans mot de passe pour local)
+      REDIS_URL: redis://redis:6379/0
+      
+      # InfluxDB
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_ADMIN_TOKEN:-StationTraffeyereToken2024}
+      INFLUX_ORG: ${INFLUX_ORG:-traffeyere}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
+      
+      # Application
+      SECRET_KEY: ${SECRET_KEY:-StationTraffeyereSecret2024}
+      JWT_SECRET: ${JWT_SECRET:-StationTraffeyereJWT2024}
+      ENVIRONMENT: development
+      DEBUG: "true"
+      
+      # MQTT
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_user}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-StationTraffeyer2024}
+      
+      # Configuration métier
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
+      STATION_NAME: ${STATION_NAME:-Station Traffeyère}
+      STATION_LOCATION: ${STATION_LOCATION:-45.764043,4.835659}
+      
+      # URLs frontend pour CORS
+      FRONTEND_URL: http://localhost:3000
+    volumes:
+      - backend_logs:/app/logs
+      - backend_models:/app/models
+      - backend_uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Frontend React statique
+  frontend:
+    build:
+      context: .
+      dockerfile: ./services/frontend/Dockerfile
+    restart: unless-stopped
+    environment:
+      # URLs backend pour proxying
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Monitoring Grafana
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      
+      # Branding
+      GF_BRANDING_TITLE: "Station Traffeyère Monitoring - RNCP 39394"
+      
+      # Database SQLite pour simplicité locale
+      GF_DATABASE_TYPE: sqlite3
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+
+  # Prometheus pour les métriques
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - prometheus_data:/prometheus
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+
+  # Node Exporter pour métriques système
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - "9100:9100"
+
+# Volumes persistants locaux
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  influxdb_data:
+    driver: local
+  influxdb_config:
+    driver: local
+  mosquitto_data:
+    driver: local
+  mosquitto_logs:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  backend_logs:
+    driver: local
+  backend_models:
+    driver: local
+  backend_uploads:
+    driver: local
+
+# Réseau par défaut
+networks:
+  default:
+    driver: bridge

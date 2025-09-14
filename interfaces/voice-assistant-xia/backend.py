@@ -55,7 +55,14 @@ class XAIBackend:
         self.mqtt_password = os.getenv('MQTT_PASSWORD', 'mqtt_secure_2024')
         
         self.edge_ai_url = os.getenv('EDGE_AI_API_URL', 'http://localhost:8091')
-        self.redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        redis_host = os.getenv('REDIS_HOST', 'localhost')
+        redis_port = os.getenv('REDIS_PORT', '6379')
+        redis_password = os.getenv('REDIS_PASSWORD', None)
+        
+        if redis_password:
+            self.redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}"
+        else:
+            self.redis_url = f"redis://{redis_host}:{redis_port}"
         
         # Cache données en mémoire
         self.sensor_cache: Dict[str, SensorReading] = {}

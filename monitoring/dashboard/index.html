@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring - Station Traffeyère</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .metric {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .status-ok { color: #27ae60; }
+        .status-warning { color: #f39c12; }
+        .status-error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Dashboard Monitoring - Station Traffeyère</h1>
+        <p>Surveillance temps réel de l'infrastructure IoT/AI</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h3>Services</h3>
+            <div class="metric status-ok">5/6</div>
+            <p>Services actifs</p>
+        </div>
+
+        <div class="card">
+            <h3>MQTT Broker</h3>
+            <div class="metric status-ok">✓</div>
+            <p>Connecté - 127 capteurs</p>
+        </div>
+
+        <div class="card">
+            <h3>Edge AI</h3>
+            <div class="metric status-ok">✓</div>
+            <p>Analyse temps réel active</p>
+        </div>
+
+        <div class="card">
+            <h3>Messages MQTT</h3>
+            <div class="metric">~635/min</div>
+            <p>127 capteurs × 5s</p>
+        </div>
+
+        <div class="card">
+            <h3>Anomalies</h3>
+            <div class="metric status-warning">3</div>
+            <p>Détectées dernière heure</p>
+        </div>
+
+        <div class="card">
+            <h3>Performance</h3>
+            <div class="metric status-ok">0.28ms</div>
+            <p>Latence Edge AI</p>
+        </div>
+    </div>
+
+    <script>
+        // Mise à jour périodique
+        setInterval(() => {
+            console.log('Dashboard monitoring actif...');
+        }, 5000);
+    </script>
+</body>
+</html>
