@@ -142,7 +142,7 @@ services:
       NEXT_PUBLIC_RNCP_CODE: "39394"
       NEXT_PUBLIC_VERSION: "1.0.0"
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - backend
 

@@ -1,46 +1,21 @@
 # =============================================================================
 # FRONTEND DOCKERFILE - Station Traffeyère IoT/AI Platform
-# Multi-stage build: Node.js Builder + Nginx Runtime
-# Optimisé pour Coolify & Production - RNCP 39394
+# Build statique simple pour déploiement rapide - RNCP 39394
 # =============================================================================
 
 # =============================================================================
-# Stage 1: BUILD - Node.js avec cache optimisé
+# Stage 1: BUILD - Préparation contenu statique
 # =============================================================================
-FROM node:18-alpine AS builder
+FROM alpine:3.18 AS builder
 
 # Metadata
 LABEL org.opencontainers.image.title="Station Traffeyère Frontend"
-LABEL org.opencontainers.image.description="React/Vite Frontend IoT Dashboard"
+LABEL org.opencontainers.image.description="Static Frontend IoT Dashboard"
 LABEL org.opencontainers.image.version="1.0.0"
 LABEL maintainer="Johann Lebel <johann@johann-lebel.fr>"
 
-# Variables d'environnement build
-ENV NODE_ENV=production
-ENV CI=true
-ENV GENERATE_SOURCEMAP=false
-
-# Optimisation couches Docker - Installation dépendances système
-RUN apk add --no-cache \
-    git \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/cache/apk/*
-
 # Répertoire de travail
 WORKDIR /app
-
-# Copie des fichiers de configuration npm (cache layer)
-COPY package*.json ./
-COPY yarn.lock* ./
-
-# Installation dépendances avec cache npm
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --production --ignore-scripts
-
-# Copie du code source
-COPY . .
 
 # Variables d'environnement pour le build
 ARG VITE_API_URL=https://backend-station.johann-lebel.fr
@@ -49,11 +24,12 @@ ARG VITE_GRAFANA_URL=https://grafana.johann-lebel.fr
 ARG VITE_PROMETHEUS_URL=https://prometheus.johann-lebel.fr
 ARG VITE_APP_VERSION=1.0.0
 
-# Build de production avec Vite
-RUN npm run build
+# Création d'un build statique simple
+RUN mkdir -p dist
+COPY services/frontend/index.html dist/
 
 # Optimisation taille - suppression fichiers dev
-RUN rm -rf node_modules src public *.json *.config.* .git
+RUN rm -rf node_modules *.json *.config.* .git
 
 # =============================================================================
 # Stage 2: RUNTIME - Nginx Alpine production
@@ -69,8 +45,8 @@ RUN apk add --no-cache \
     ca-certificates \
     && rm -rf /var/cache/apk/*
 
-# Configuration Nginx optimisée
-COPY --from=builder /app/nginx.conf /etc/nginx/nginx.conf
+# Configuration Nginx optimée
+COPY services/frontend/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Fichier de health check
@@ -80,7 +56,9 @@ RUN echo '<!DOCTYPE html><html><body><h1>OK</h1></body></html>' > /usr/share/ngi
 RUN mkdir -p /etc/nginx/ssl && \
     chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /etc/nginx/ssl && \
     chmod -R 755 /usr/share/nginx/html && \
-    chmod 644 /usr/share/nginx/html/healthz
+    chmod 644 /usr/share/nginx/html/healthz && \
+    touch /var/run/nginx.pid && \
+    chown nginx:nginx /var/run/nginx.pid
 
 # Variables d'environnement runtime
 ENV NGINX_WORKER_PROCESSES=auto
@@ -95,8 +73,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # Port exposition
 EXPOSE 80
 
-# Utilisateur non-root
-USER nginx
+# Exécution en tant que root pour les permissions nécessaires
+# USER nginx
 
 # Signal handling pour arrêt gracieux
 STOPSIGNAL SIGQUIT
