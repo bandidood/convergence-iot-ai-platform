@@ -1,0 +1,65 @@
+# =============================================================================
+# DOCKER COMPOSE MINIMAL - Station Traffeyère IoT/AI Platform  
+# Version ultra-simplifiée pour déploiement d'urgence - RNCP 39394
+# =============================================================================
+
+services:
+  # Backend FastAPI (mode autonome avec SQLite)
+  backend:
+    build:
+      context: .
+      dockerfile: ./services/backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Projet RNCP 39394
+      PROJECT_NAME: "Station Traffeyère IoT/AI Platform"
+      PROJECT_VERSION: "1.0.0"
+      RNCP_CODE: "39394"
+      
+      # Mode développement avec SQLite
+      DATABASE_URL: sqlite:///./station_traffeyere.db
+      
+      # Configuration minimale
+      SECRET_KEY: changeme-secret-key-minimal-123
+      JWT_SECRET: changeme-jwt-secret-minimal-123
+      ENVIRONMENT: development
+      DEBUG: "true"
+      
+      # Configuration métier
+      STATION_ID: TRAFFEYERE_001
+      STATION_NAME: "Station Traffeyère"
+      STATION_LOCATION: "45.764043,4.835659"
+    volumes:
+      - backend_data:/app/data
+      - backend_logs:/app/logs
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Frontend React statique
+  frontend:
+    build:
+      context: .
+      dockerfile: ./services/frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Volumes persistants minimaux
+volumes:
+  backend_data:
+  backend_logs:
