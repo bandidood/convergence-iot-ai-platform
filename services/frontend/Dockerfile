@@ -37,7 +37,7 @@ COPY yarn.lock* ./
 
 # Installation dépendances avec cache npm
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --only=production --ignore-scripts
+    npm install --production --ignore-scripts
 
 # Copie du code source
 COPY . .
@@ -60,9 +60,7 @@ RUN rm -rf node_modules src public *.json *.config.* .git
 # =============================================================================
 FROM nginx:1.25-alpine AS production
 
-# Security: utilisateur non-root
-RUN addgroup -g 101 -S nginx && \
-    adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
+# Security: utilisateur non-root (nginx user existe déjà dans l'image de base)
 
 # Installation outils production
 RUN apk add --no-cache \
