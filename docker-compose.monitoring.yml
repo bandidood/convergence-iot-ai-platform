@@ -1,531 +1,223 @@
-# =============================================================================
-# STACK MONITORING COMPLÈTE - RNCP 39394
-# Expert en Systèmes d'Information et Sécurité
-# 
-# Prometheus + Grafana + Alertmanager + Splunk + Falco
-# Observabilité 360° avec sécurité intégrée ISA/IEC 62443
-# =============================================================================
+# ================================================================
+# DOCKER COMPOSE - STACK MONITORING
+# Station Traffeyère IoT/AI Platform - Observabilité Complète
+# ================================================================
 
 version: '3.8'
 
-# =============================================================================
-# RÉSEAUX SÉCURISÉS
-# =============================================================================
-networks:
-  monitoring:
-    driver: bridge
-    name: rncp-39394-monitoring
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
-    driver_opts:
-      encrypted: "true"
-      
-  logging:
-    driver: bridge
-    name: rncp-39394-logging
-    ipam:
-      config:
-        - subnet: 172.26.0.0/16
-        
-  security:
-    driver: bridge
-    name: rncp-39394-security
-    ipam:
-      config:
-        - subnet: 172.24.0.0/16
-
-# =============================================================================
-# VOLUMES PERSISTANTS
-# =============================================================================
-volumes:
-  prometheus_data:
-    driver: local
-    name: rncp-39394-prometheus-data
-  grafana_data:
-    driver: local
-    name: rncp-39394-grafana-data
-  alertmanager_data:
-    driver: local
-    name: rncp-39394-alertmanager-data
-  splunk_etc:
-    driver: local
-    name: rncp-39394-splunk-etc
-  splunk_var:
-    driver: local
-    name: rncp-39394-splunk-var
-
-# =============================================================================
-# SECRETS SÉCURISÉS
-# =============================================================================
-secrets:
-  grafana_admin_password:
-    file: ./secrets/grafana_admin_password.txt
-  alertmanager_smtp_password:
-    file: ./secrets/alertmanager_smtp_password.txt
-  splunk_admin_password:
-    file: ./secrets/splunk_admin_password.txt
-  slack_webhook_url:
-    file: ./secrets/slack_webhook_url.txt
-
-# =============================================================================
-# SERVICES D'OBSERVABILITÉ
-# =============================================================================
 services:
-
-  # ---------------------------------------------------------------------------
-  # PROMETHEUS - MÉTRIQUES ET ALERTES
-  # ---------------------------------------------------------------------------
+  # Prometheus - Métriques
   prometheus:
-    image: prom/prometheus:v2.45.0
-    container_name: rncp-39394-prometheus
-    restart: unless-stopped
-    
-    # Configuration sécurité
-    user: "65534:65534"  # nobody user
-    read_only: true
-    
-    # Ressources
-    mem_limit: 2g
-    mem_reservation: 1g
-    cpus: '2'
-    
-    # Réseau
-    networks:
-      - monitoring
+    image: prom/prometheus:v2.47.0
+    container_name: station-prometheus
     ports:
       - "9090:9090"
-    
-    # Configuration
+    volumes:
+      - ./configurations/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./configurations/prometheus/rules:/etc/prometheus/rules
+      - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=90d'
-      - '--storage.tsdb.retention.size=50GB'
+      - '--storage.tsdb.retention.time=30d'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
       - '--web.enable-admin-api'
-      - '--web.listen-address=0.0.0.0:9090'
-      - '--log.level=info'
-      - '--query.max-concurrency=50'
-      - '--query.timeout=2m'
-      
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/prometheus/rules.yaml:/etc/prometheus/rules.yaml:ro
-      - ./monitoring/prometheus/station-traffeyere-alerts.yaml:/etc/prometheus/station-traffeyere-alerts.yaml:ro
-      - prometheus_data:/prometheus
-      - /tmp:/tmp  # Pour readonly filesystem
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    
-    # Labels pour monitoring
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.rncp-39394.local`)"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-
-  # ---------------------------------------------------------------------------
-  # GRAFANA - DASHBOARDS ET VISUALISATION
-  # ---------------------------------------------------------------------------
-  grafana:
-    image: grafana/grafana:10.0.0
-    container_name: rncp-39394-grafana
-    restart: unless-stopped
-    
-    # Sécurité
-    user: "472:0"  # grafana user
-    
-    # Ressources
-    mem_limit: 1g
-    mem_reservation: 512m
-    cpus: '1'
-    
-    # Réseau
     networks:
-      - monitoring
+      - monitoring-network
+    restart: unless-stopped
+
+  # Grafana - Dashboards
+  grafana:
+    image: grafana/grafana:10.1.2
+    container_name: station-grafana
     ports:
       - "3000:3000"
-    
-    # Variables d'environnement
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_admin_password
-      - GF_SECURITY_SECRET_KEY=rncp39394-grafana-secret-key-2024
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_USERS_ALLOW_ORG_CREATE=false
-      - GF_AUTH_DISABLE_LOGIN_FORM=false
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_SMTP_ENABLED=true
-      - GF_SMTP_HOST=smtp.company.com:587
-      - GF_SMTP_USER=grafana@company.com
-      - GF_SMTP_FROM_ADDRESS=grafana-rncp39394@company.com
-      - GF_SMTP_FROM_NAME=RNCP 39394 Grafana
-      - GF_SERVER_ROOT_URL=https://grafana.rncp-39394.local
-      - GF_ANALYTICS_REPORTING_ENABLED=false
-      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
-      - GF_LOG_LEVEL=info
-      - GF_EXPLORE_ENABLED=true
-      - GF_ALERTING_ENABLED=true
-      
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
     volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
-    
-    secrets:
-      - grafana_admin_password
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    
-    # Dépendances
+      - ./configurations/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./configurations/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./configurations/grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafana-data:/var/lib/grafana
+    networks:
+      - monitoring-network
     depends_on:
       - prometheus
-
-  # ---------------------------------------------------------------------------
-  # ALERTMANAGER - GESTION ALERTES ET NOTIFICATIONS
-  # ---------------------------------------------------------------------------
-  alertmanager:
-    image: prom/alertmanager:v0.26.0
-    container_name: rncp-39394-alertmanager
     restart: unless-stopped
-    
-    # Sécurité
-    user: "65534:65534"  # nobody
-    read_only: true
-    
-    # Ressources
-    mem_limit: 512m
-    mem_reservation: 256m
-    cpus: '1'
-    
-    # Réseau
-    networks:
-      - monitoring
-    ports:
-      - "9093:9093"
-      - "9094:9094"  # Cluster peer
-    
-    # Configuration
-    command:
-      - '--config.file=/etc/alertmanager/config.yml'
-      - '--storage.path=/alertmanager'
-      - '--web.listen-address=:9093'
-      - '--web.external-url=https://alertmanager.rncp-39394.local'
-      - '--cluster.listen-address=0.0.0.0:9094'
-      - '--log.level=info'
-      - '--data.retention=720h'  # 30 jours
-      
-    volumes:
-      - ./monitoring/alertmanager/config-minimal.yaml:/etc/alertmanager/config.yml:ro
-      - alertmanager_data:/alertmanager
-      - /tmp:/tmp  # Pour readonly filesystem
-    
-    secrets:
-      - alertmanager_smtp_password
-      - slack_webhook_url
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
-  # ---------------------------------------------------------------------------
-  # NODE EXPORTER - MÉTRIQUES SYSTÈME
-  # ---------------------------------------------------------------------------
+  # Node Exporter - Métriques système
   node-exporter:
-    image: prom/node-exporter:v1.6.0
-    container_name: rncp-39394-node-exporter
-    restart: unless-stopped
-    
-    # Privilèges pour accès système
-    pid: host
-    
-    # Réseau
-    networks:
-      - monitoring
+    image: prom/node-exporter:v1.6.1
+    container_name: station-node-exporter
     ports:
       - "9100:9100"
-    
-    # Configuration
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-      - '--collector.textfile.directory=/var/lib/node_exporter/textfile_collector'
-      - '--no-collector.ipvs'
-      
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-      - /var/lib/node_exporter/textfile_collector:/var/lib/node_exporter/textfile_collector:ro
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
-  # CADVISOR - MÉTRIQUES CONTAINERS
-  # ---------------------------------------------------------------------------
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.0
-    container_name: rncp-39394-cadvisor
-    restart: unless-stopped
-    
-    # Privilèges
-    privileged: true
-    
-    # Ressources
-    mem_limit: 256m
-    
-    # Réseau
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     networks:
-      - monitoring
+      - monitoring-network
+    restart: unless-stopped
+
+  # cAdvisor - Métriques containers
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: station-cadvisor
     ports:
-      - "8081:8080"
-    
+      - "8080:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-    
+    privileged: true
     devices:
       - /dev/kmsg
-
-  # ---------------------------------------------------------------------------
-  # SPLUNK - AGRÉGATION LOGS ET SIEM
-  # ---------------------------------------------------------------------------
-  splunk:
-    image: splunk/splunk:9.0.0
-    container_name: rncp-39394-splunk
-    restart: unless-stopped
-    
-    # Ressources
-    mem_limit: 4g
-    mem_reservation: 2g
-    cpus: '2'
-    
-    # Réseau
     networks:
-      - logging
-      - monitoring
+      - monitoring-network
+    restart: unless-stopped
+
+  # AlertManager - Gestion alertes
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: station-alertmanager
     ports:
-      - "8000:8000"    # Web UI
-      - "8088:8088"    # HEC
-      - "9997:9997"    # Forwarder
-      - "514:514/udp"  # Syslog
-    
-    # Configuration Splunk
-    environment:
-      - SPLUNK_START_ARGS=--accept-license
-      - SPLUNK_PASSWORD_FILE=/run/secrets/splunk_admin_password
-      - SPLUNK_HEC_TOKEN=rncp-39394-hec-token-2024
-      - SPLUNK_ENABLE_LISTEN=9997
-      - SPLUNK_ADD=tcp 1514 # Syslog
-      
+      - "9093:9093"
     volumes:
-      - splunk_etc:/opt/splunk/etc
-      - splunk_var:/opt/splunk/var
-      - ./monitoring/splunk/apps:/opt/splunk/etc/apps:ro
-      - ./logs:/host/logs:ro
-    
-    secrets:
-      - splunk_admin_password
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/en-US/account/login"]
-      interval: 60s
-      timeout: 30s
-      retries: 3
-      start_period: 120s
-
-  # ---------------------------------------------------------------------------
-  # FALCO - DÉTECTION INTRUSION RUNTIME
-  # ---------------------------------------------------------------------------
-  falco:
-    image: falcosecurity/falco:0.35.0
-    container_name: rncp-39394-falco
-    restart: unless-stopped
-    
-    # Privilèges pour accès kernel
-    privileged: true
-    
-    # Ressources
-    mem_limit: 512m
-    
-    # Réseau
-    networks:
-      - security
-    ports:
-      - "8765:8765"  # gRPC API
-    
-    # Configuration
+      - ./configurations/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./configurations/alertmanager/templates:/etc/alertmanager/templates
+      - alertmanager-data:/alertmanager
     command:
-      - /usr/bin/falco
-      - --pidfile=/var/run/falco.pid
-      - --grpc-bind-address=0.0.0.0:8765
-      - --grpc-root-certs=/etc/ssl/certs/ca-certificates.crt
-      
-    volumes:
-      - /var/run/docker.sock:/host/var/run/docker.sock:ro
-      - /dev:/host/dev:ro
-      - /proc:/host/proc:ro
-      - /boot:/host/boot:ro
-      - /lib/modules:/host/lib/modules:ro
-      - /usr:/host/usr:ro
-      - /etc:/host/etc:ro
-      - ./monitoring/falco/falco.yaml:/etc/falco/falco.yaml:ro
-      - ./monitoring/falco/rules:/etc/falco/rules:ro
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "pgrep", "falco"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
-  # JAEGER - TRACING DISTRIBUÉ
-  # ---------------------------------------------------------------------------
-  jaeger:
-    image: jaegertracing/all-in-one:1.46.0
-    container_name: rncp-39394-jaeger
-    restart: unless-stopped
-    
-    # Ressources
-    mem_limit: 1g
-    
-    # Réseau
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
     networks:
-      - monitoring
+      - monitoring-network
+    restart: unless-stopped
+
+  # Jaeger - Tracing distribué
+  jaeger:
+    image: jaegertracing/all-in-one:1.49.0
+    container_name: station-jaeger
     ports:
-      - "16686:16686"  # Web UI
-      - "14268:14268"  # Jaeger collector HTTP
-      - "14250:14250"  # Jaeger collector gRPC
-      - "6831:6831/udp" # Jaeger agent compact
-      - "6832:6832/udp" # Jaeger agent binary
-    
-    # Configuration
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
-      - SPAN_STORAGE_TYPE=memory
-      - LOG_LEVEL=info
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
-  # VECTOR - ROUTAGE LOGS ET MÉTRIQUES
-  # ---------------------------------------------------------------------------
-  vector:
-    image: timberio/vector:0.31.0-alpine
-    container_name: rncp-39394-vector
-    restart: unless-stopped
-    
-    # Ressources
-    mem_limit: 512m
-    
-    # Réseau
-    networks:
-      - logging
-      - monitoring
-    ports:
-      - "8686:8686"  # API
-      - "9598:9598"  # Prometheus metrics
-    
     volumes:
-      - ./monitoring/vector/vector.toml:/etc/vector/vector.toml:ro
-      - /var/log:/host/var/log:ro
-      - ./logs:/app/logs
-    
-    # Configuration
-    command: ["--config", "/etc/vector/vector.toml"]
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8686/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
-  # NGINX - REVERSE PROXY ET TLS
-  # ---------------------------------------------------------------------------
-  nginx-monitoring:
-    image: nginx:1.24-alpine
-    container_name: rncp-39394-nginx-monitoring
-    restart: unless-stopped
-    
-    # Ressources
-    mem_limit: 256m
-    
-    # Réseau
+      - jaeger-data:/tmp
     networks:
-      - monitoring
+      - monitoring-network
+    restart: unless-stopped
+
+  # Loki - Logs aggregation
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: station-loki
     ports:
-      - "443:443"
-      - "80:80"
-    
+      - "3100:3100"
     volumes:
-      - ./monitoring/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./monitoring/nginx/ssl:/etc/nginx/ssl:ro
-      - ./monitoring/nginx/htpasswd:/etc/nginx/htpasswd:ro
-    
-    # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/nginx_status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    
-    # Dépendances
+      - ./configurations/loki/loki.yml:/etc/loki/loki.yml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki.yml
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+  # Promtail - Log collector
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: station-promtail
+    volumes:
+      - ./configurations/promtail/promtail.yml:/etc/promtail/promtail.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/promtail.yml
+    networks:
+      - monitoring-network
     depends_on:
-      - grafana
-      - prometheus
-      - alertmanager
+      - loki
+    restart: unless-stopped
 
-# =============================================================================
-# CONFIGURATION AVANCÉE
-# =============================================================================
+  # Blackbox Exporter - Monitoring externe
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: station-blackbox-exporter
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./configurations/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+    networks:
+      - monitoring-network
+    restart: unless-stopped
 
-# Healthcheck global
-x-healthcheck: &default-healthcheck
-  interval: 30s
-  timeout: 10s
-  retries: 3
-  start_period: 30s
+  # MQTT Exporter - Métriques IoT
+  mqtt-exporter:
+    image: kpetrem/mqtt-exporter:latest
+    container_name: station-mqtt-exporter
+    ports:
+      - "9234:9234"
+    environment:
+      - MQTT_ADDRESS=mosquitto:1883
+      - MQTT_TOPIC=sensor/+/+
+      - MQTT_USERNAME=mqtt_user
+      - MQTT_PASSWORD=mqtt_password
+      - PROMETHEUS_PORT=9234
+    networks:
+      - monitoring-network
+      - iot-network
+    restart: unless-stopped
 
-# Labels communs
-x-labels: &default-labels
-  - "project=rncp-39394"
-  - "environment=production"
-  - "maintainer=expert-si-securite"
+  # Custom Metrics Collector
+  custom-metrics-collector:
+    build:
+      context: ./monitoring/custom-collector
+      dockerfile: Dockerfile
+    container_name: station-custom-collector
+    ports:
+      - "8000:8000"
+    environment:
+      - PROMETHEUS_PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./configurations/custom-collector:/app/config
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+  jaeger-data:
+    driver: local
+  loki-data:
+    driver: local
+
+networks:
+  monitoring-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    labels:
+      - "com.station-traffeyere.network.type=monitoring"
+      - "com.station-traffeyere.network.zone=internal"
+  
+  iot-network:
+    external: true

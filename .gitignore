@@ -1,0 +1,308 @@
+# =============================================================================
+# CONFIGURATION GITIGNORE SÉCURISÉE - STATION TRAFFEYÈRE IoT/AI PLATFORM
+# Projet RNCP 39394 - Expert en Systèmes d'Information et Sécurité
+# =============================================================================
+
+# === SÉCURITÉ - NE JAMAIS COMMITER ===
+# Secrets et clés
+*.key
+*.pem
+*.p12
+*.pfx
+*.keystore
+secrets/
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+config/secrets.yml
+jwt_secret*
+api_keys.txt
+oauth_credentials.json
+
+# Certificats SSL/TLS
+*.crt
+*.cer
+*.ca-bundle
+ssl/
+tls/
+certificates/*.key
+certificates/*.pem
+
+# Tokens et authentification
+.auth_tokens
+.vault_token
+.kubernetes_token
+.docker_token
+
+# === DONNÉES SENSIBLES ===
+# Logs systèmes
+*.log
+logs/
+var/log/
+*.log.*
+
+# Bases de données
+*.db
+*.sqlite
+*.sqlite3
+database/
+db_backups/
+*.dump
+*.sql.gz
+
+# Données personnelles (RGPD)
+pii_data/
+gdpr_exports/
+personal_data/
+
+# Sauvegardes
+backup/
+*.backup
+*.bak
+
+# === BUILDS ET CACHES ===
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.next/
+.nuxt/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+.cache
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+target/
+.gradle/
+build/
+
+# C/C++
+*.o
+*.a
+*.so
+*.dll
+*.exe
+
+# Go
+*.test
+*.out
+go.sum
+
+# === CONTAINERS ET ORCHESTRATION ===
+# Docker
+docker-compose.override.yml
+.docker/
+.dockerignore.bak
+docker-compose.*.override.yml
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+kube-config
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars
+terraform.tfplan
+crash.log
+
+# Ansible
+*.retry
+.vault_pass
+
+# === IDE ET ÉDITEURS ===
+# VS Code
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# === SYSTÈME D'EXPLOITATION ===
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+
+# === MONITORING ET OBSERVABILITÉ ===
+# Prometheus
+*.prom
+prometheus_data/
+
+# Grafana
+grafana/data/
+grafana.db
+
+# Logs applicatifs
+app.log
+error.log
+access.log
+audit.log
+
+# === RAPPORTS SÉCURITÉ (à versionner séparément) ===
+# Scans vulnérabilités
+security-reports/
+vulnerability-scans/
+penetration-tests/
+audit-reports/
+compliance-reports/
+
+# Tests sécurité
+bandit-report.json
+safety-report.json
+trivy-report.json
+
+# === DONNÉES TEMPORAIRES ===
+# Fichiers temporaires
+*.tmp
+*.temp
+*.swp
+*.swo
+tmp/
+temp/
+
+# Caches
+.cache/
+*.cache
+
+# === MACHINE LEARNING ===
+# Modèles entraînés (si trop volumineux)
+*.h5
+*.pkl
+*.model
+models/*.bin
+*.onnx
+*.tflite
+training_data/
+model_artifacts/
+
+# Datasets volumineux
+*.parquet
+*.csv.gz
+large_datasets/
+
+# === INFRASTRUCTURE AS CODE ===
+# Vagrant
+.vagrant/
+
+# Packer
+packer_cache/
+
+# === CONFIGURATION COOLIFY ===
+# Coolify spécifique
+.coolify/
+coolify-override.yml
+
+# === DOCUMENTATION BUILD ===
+# Sphinx
+_build/
+.doctrees/
+
+# MkDocs
+site/
+
+# Jekyll
+_site/
+.sass-cache/
+.jekyll-metadata
+
+# === AUTRES ===
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Fichiers volumineux
+*.iso
+*.img
+
+# Fichiers de configuration locaux
+local.yml
+local.json
+.local
+
+# Tests unitaires
+junit.xml
+coverage.xml
+.nyc_output/
+
+# Profiling
+profile.out
+*.prof
+
+# Debug
+debug.log
+*.debug
+
+# =============================================================================
+# FIN GITIGNORE SÉCURISÉ - STATION TRAFFEYÈRE IoT/AI PLATFORM
+# =============================================================================

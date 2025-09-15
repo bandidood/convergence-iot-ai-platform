@@ -24,7 +24,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./database/init:/docker-entrypoint-initdb.d:ro
     networks:
       - backend
     ports:
@@ -55,7 +55,7 @@ services:
     command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --appendfsync everysec --maxmemory 2gb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
-      - ./configurations/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - backend
     ports:
@@ -213,8 +213,8 @@ services:
       
     volumes:
       - keycloak_data:/opt/keycloak/data
-      - ./configurations/keycloak/realm:/opt/keycloak/data/import:ro
-      - ./configurations/keycloak/themes:/opt/keycloak/themes:ro
+      - ./config/keycloak/realm:/opt/keycloak/data/import:ro
+      - ./config/keycloak/themes:/opt/keycloak/themes:ro
       
     ports:
       - "8080:8080"
@@ -266,8 +266,8 @@ services:
       - "1883:1883"
       - "8083:8083"  # WebSocket
     volumes:
-      - ./configurations/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./configurations/mosquitto/users:/mosquitto/config/users:ro
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./config/mosquitto/users:/mosquitto/config/users:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_logs:/mosquitto/log
     networks:
@@ -541,7 +541,7 @@ services:
       - unity_logs:/app/logs
       - unity_cache:/app/cache
       - unity_models:/app/models
-      - ./configurations/unity:/app/config:ro
+      - ./config/unity:/app/config:ro
     
     ports:
       - "8094:8094"  # API
@@ -633,7 +633,7 @@ services:
       - xai_logs:/app/logs
       - xai_models:/app/models
       - xai_cache:/app/cache
-      - ./configurations/xai:/app/config:ro
+      - ./config/xai:/app/config:ro
     
     ports:
       - "8092:8092"  # API XAI
@@ -790,8 +790,8 @@ services:
       - --web.enable-lifecycle
       - --web.enable-admin-api
     volumes:
-      - ./configurations/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./configurations/prometheus/rules:/etc/prometheus/rules:ro
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -871,8 +871,8 @@ services:
       
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./configurations/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - ./configurations/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3001:3000"
     networks:

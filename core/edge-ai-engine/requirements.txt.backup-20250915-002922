@@ -1,0 +1,58 @@
+# Requirements for Explainable Edge AI Engine - RNCP 39394
+# Week 3: Explainable Edge AI engine - Security Updated Dependencies
+
+# Core ML libraries - Updated for security
+scikit-learn==1.4.2
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.1
+
+# Deep learning - Updated to latest secure versions
+tensorflow==2.17.0
+keras==3.4.1
+
+# Explainable AI - Updated versions
+shap==0.46.0
+lime==0.2.0.1
+
+# Performance monitoring - Security patches
+psutil==6.0.0
+memory-profiler==0.61.0
+
+# Data processing - Secure versions
+joblib==1.4.2
+# pickle5>=0.0.12  # Removed - potential security risk, use joblib instead
+
+# Time series and IoT - Updated
+pytz==2024.1
+python-dateutil==2.9.0.post0
+
+# Async processing - Latest secure versions
+asyncio-mqtt==0.16.2
+aiofiles==24.1.0
+
+# Development and testing - Updated
+pytest==8.2.2
+pytest-asyncio==0.23.7
+pytest-benchmark==4.0.0
+
+# Optimization - Latest versions
+numba==0.60.0  # JIT compilation for performance
+cython==3.0.10  # C extensions
+
+# GPU support (CUDA) - Updated for security
+# tensorflow[and-cuda]==2.17.0  # Latest GPU support
+# cupy-cuda12x>=13.2.0    # Updated CUDA arrays
+
+# Container runtime - Security update
+docker==7.1.0
+
+# Monitoring and observability - Security patches
+prometheus-client==0.20.0
+grafana-api==1.0.3
+
+# Additional security dependencies
+certifi==2024.7.4  # Updated SSL certificates
+urllib3==2.2.2     # Security patches
+requests==2.32.3    # HTTP library security updates
+cryptography==43.0.0  # Cryptographic library updates

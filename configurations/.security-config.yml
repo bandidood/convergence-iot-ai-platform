@@ -1,0 +1,287 @@
+# =============================================================================
+# CONFIGURATION SÉCURITÉ GLOBALE - STATION TRAFFEYÈRE IoT/AI PLATFORM
+# Projet RNCP 39394 - Expert en Systèmes d'Information et Sécurité
+# =============================================================================
+
+security:
+  # =========================================================================
+  # STANDARDS CONFORMITÉ
+  # =========================================================================
+  compliance_frameworks:
+    - "ISA/IEC 62443"
+    - "NIST Cybersecurity Framework"
+    - "GDPR"
+    - "NIS2"
+    - "ISO 27001"
+    - "ANSSI"
+  
+  # =========================================================================
+  # NIVEAUX SÉCURITÉ REQUIS
+  # =========================================================================
+  security_levels:
+    development: "SL1"
+    staging: "SL2"
+    production: "SL3+"
+    critical_infrastructure: "SL4"
+  
+  # =========================================================================
+  # CHIFFREMENT OBLIGATOIRE
+  # =========================================================================
+  encryption:
+    data_at_rest: "AES-256-GCM"
+    data_in_transit: "TLS 1.3"
+    database_encryption: "TDE"
+    key_management: "HashiCorp Vault"
+    certificate_authority: "Step-CA"
+    pki_key_size: 4096
+    cipher_suites:
+      - "ECDHE-RSA-AES256-GCM-SHA384"
+      - "ECDHE-RSA-CHACHA20-POLY1305"
+      - "ECDHE-RSA-AES128-GCM-SHA256"
+  
+  # =========================================================================
+  # CONTRÔLES D'ACCÈS
+  # =========================================================================
+  access_control:
+    authentication: "multi-factor"
+    authorization: "role-based"
+    session_timeout: "30m"
+    max_login_attempts: 3
+    lockout_duration: "15m"
+    password_policy:
+      min_length: 12
+      complexity: true
+      history: 12
+      max_age: "90d"
+  
+  # =========================================================================
+  # MONITORING SÉCURITÉ
+  # =========================================================================
+  monitoring:
+    siem_integration: true
+    threat_detection: "real-time"
+    incident_response: "automated"
+    log_retention: "2y"
+    audit_frequency: "continuous"
+    security_metrics:
+      - "failed_login_attempts"
+      - "privilege_escalation_attempts"
+      - "data_exfiltration_indicators"
+      - "malware_detection"
+      - "vulnerability_exposure"
+  
+  # =========================================================================
+  # TESTS SÉCURITÉ OBLIGATOIRES
+  # =========================================================================
+  security_tests:
+    static_analysis: true
+    dynamic_analysis: true
+    penetration_testing: "monthly"
+    vulnerability_scanning: "weekly"
+    dependency_scanning: "daily"
+    container_scanning: true
+    infrastructure_scanning: true
+    compliance_testing: "quarterly"
+  
+  # =========================================================================
+  # RÉPONSE AUX INCIDENTS
+  # =========================================================================
+  incident_response:
+    detection_time_target: "5m"
+    response_time_target: "15m"
+    escalation_matrix:
+      critical: "immediate"
+      high: "1h"
+      medium: "4h"
+      low: "24h"
+    communication_channels:
+      - "email"
+      - "slack"
+      - "phone"
+      - "sms"
+
+# =============================================================================
+# CI/CD SECURITY GATES
+# =============================================================================
+cicd:
+  security_gates:
+    - stage: "source"
+      checks: 
+        - "secrets-detection"
+        - "dependency-scan"
+        - "license-compliance"
+      blocking: true
+      timeout: "5m"
+    
+    - stage: "build" 
+      checks: 
+        - "sast"
+        - "container-scan"
+        - "dockerfile-linting"
+      blocking: true
+      timeout: "10m"
+    
+    - stage: "test"
+      checks: 
+        - "dast"
+        - "integration-security-tests"
+        - "performance-security-tests"
+      blocking: true
+      timeout: "30m"
+    
+    - stage: "deploy"
+      checks: 
+        - "compliance-validation"
+        - "runtime-security"
+        - "network-policy-validation"
+      blocking: true
+      timeout: "5m"
+
+  # =========================================================================
+  # POLITIQUE BRANCHES
+  # =========================================================================
+  branch_protection:
+    main:
+      required_reviews: 2
+      dismiss_stale_reviews: true
+      require_code_owner_reviews: true
+      required_status_checks:
+        - "security-scan"
+        - "vulnerability-check"
+        - "compliance-test"
+      restrictions:
+        push: ["security-team", "lead-developers"]
+        admin: ["security-admin"]
+    
+    develop:
+      required_reviews: 1
+      required_status_checks:
+        - "basic-security-scan"
+
+# =============================================================================
+# ARCHITECTURE SÉCURISÉE
+# =============================================================================
+architecture:
+  # =========================================================================
+  # SEGMENTATION RÉSEAU
+  # =========================================================================
+  network_segmentation:
+    zones:
+      dmz-iot:
+        cidr: "172.20.1.0/24"
+        security_level: "SL1"
+        allowed_protocols: ["MQTT", "HTTP"]
+        firewall_rules: "restrictive"
+      
+      edge-compute:
+        cidr: "172.20.2.0/24"
+        security_level: "SL2"
+        allowed_protocols: ["HTTP", "HTTPS", "gRPC"]
+        firewall_rules: "controlled"
+      
+      cloud-platform:
+        cidr: "172.20.3.0/24"
+        security_level: "SL3"
+        allowed_protocols: ["HTTPS", "gRPC"]
+        firewall_rules: "strict"
+      
+      management:
+        cidr: "172.20.4.0/24"
+        security_level: "SL4"
+        allowed_protocols: ["HTTPS", "SSH"]
+        firewall_rules: "maximum"
+
+  # =========================================================================
+  # MICRO-SEGMENTATION
+  # =========================================================================
+  microsegmentation:
+    enabled: true
+    default_policy: "deny-all"
+    allow_policies:
+      - source: "edge-ai-engine"
+        destination: "postgres"
+        protocol: "TCP/5432"
+        condition: "authenticated"
+      
+      - source: "api-gateway"
+        destination: "backend-services"
+        protocol: "HTTPS/443"
+        condition: "authorized"
+
+# =============================================================================
+# GESTION DES SECRETS
+# =============================================================================
+secrets_management:
+  vault_integration: true
+  secret_rotation:
+    database_passwords: "30d"
+    api_keys: "60d"
+    certificates: "1y"
+    jwt_secrets: "7d"
+  
+  secret_storage:
+    encryption: "AES-256"
+    access_logging: true
+    audit_trail: true
+    emergency_access: "break-glass"
+
+# =============================================================================
+# DOCUMENTATION SÉCURITÉ
+# =============================================================================
+documentation:
+  security_requirements: true
+  threat_model: true
+  incident_response_plan: true
+  security_training: true
+  risk_assessment: true
+  security_architecture: true
+  
+  mandatory_documents:
+    - "security-policy.md"
+    - "threat-model.md"
+    - "incident-response-plan.md"
+    - "security-training.md"
+    - "compliance-matrix.md"
+    - "risk-register.md"
+
+# =============================================================================
+# MÉTRIQUES ET KPI SÉCURITÉ
+# =============================================================================
+metrics:
+  security_kpis:
+    mttr: "< 15m"  # Mean Time To Respond
+    mttd: "< 5m"   # Mean Time To Detect
+    vulnerability_fix_time:
+      critical: "< 24h"
+      high: "< 7d"
+      medium: "< 30d"
+      low: "< 90d"
+    
+    security_coverage:
+      code_coverage: "> 80%"
+      test_coverage: "> 90%"
+      penetration_test_coverage: "> 95%"
+    
+    compliance_score: "> 95%"
+    security_training_completion: "100%"
+
+# =============================================================================
+# ENVIRONNEMENTS
+# =============================================================================
+environments:
+  development:
+    security_level: "relaxed"
+    monitoring: "basic"
+    encryption: "optional"
+  
+  staging:
+    security_level: "production-like"
+    monitoring: "enhanced"
+    encryption: "mandatory"
+  
+  production:
+    security_level: "maximum"
+    monitoring: "comprehensive"
+    encryption: "mandatory"
+    backup: "encrypted"
+    disaster_recovery: "automated"
