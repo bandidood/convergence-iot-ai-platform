@@ -126,10 +126,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/auth/realms/master || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      interval: 45s
+      timeout: 15s
+      retries: 10
+      start_period: 180s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`auth.johann-lebel.fr`)"
@@ -249,9 +249,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 45s
+      timeout: 15s
+      retries: 8
+      start_period: 120s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.edge-ai.rule=Host(`edge-ai.johann-lebel.fr`)"
@@ -346,18 +347,19 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - cluster.name=traffeyere-siem
+      - bootstrap.memory_lock=false
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
       - backend
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      interval: 60s
+      timeout: 20s
+      retries: 15
+      start_period: 300s
 
   # Kibana SIEM Dashboard
   kibana:
@@ -377,10 +379,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      interval: 45s
+      timeout: 20s
+      retries: 10
+      start_period: 240s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.kibana.rule=Host(`siem.johann-lebel.fr`)"
@@ -417,9 +419,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8092/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 45s
+      timeout: 15s
+      retries: 8
+      start_period: 150s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.xai.rule=Host(`xai.johann-lebel.fr`)"
