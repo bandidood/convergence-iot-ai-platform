@@ -64,7 +64,7 @@ RUN groupadd -r aiengine && useradd -r -g aiengine -d /app -s /bin/bash -c "AI E
 WORKDIR /app
 
 # Copie des requirements et installation optimisée
-COPY requirements.txt .
+COPY core/edge-ai-engine/requirements.txt .
 RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
     pip3 install --no-cache-dir -r requirements.txt
 
@@ -84,7 +84,7 @@ RUN pip3 install --no-cache-dir \
     prometheus-client
 
 # Copie du code source
-COPY . .
+COPY core/edge-ai-engine/ .
 
 # Compilation Numba pour optimisation JIT
 RUN python3 -c "import numba; numba.jit(lambda x: x+1)(1)"
@@ -98,8 +98,8 @@ RUN chown -R aiengine:aiengine /app && \
 RUN mkdir -p /app/models /app/logs /app/metrics && \
     chown -R aiengine:aiengine /app/models /app/logs /app/metrics
 
-# Configuration monitoring Prometheus
-COPY monitoring/prometheus.yml /etc/prometheus/
+# Configuration monitoring Prometheus (optionnel)
+# COPY monitoring/prometheus.yml /etc/prometheus/
 EXPOSE 8080 9090
 
 # Variables d'environnement sécurisées
@@ -122,7 +122,7 @@ USER aiengine
 EXPOSE 8080
 
 # Script d'entrée avec gestion des signaux
-COPY --chown=aiengine:aiengine docker-entrypoint.sh /app/
+COPY --chown=aiengine:aiengine core/edge-ai-engine/docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Point d'entrée principal

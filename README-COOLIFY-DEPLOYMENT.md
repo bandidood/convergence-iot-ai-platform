@@ -3,7 +3,7 @@
 ## 📋 Version Optimisée
 
 Votre `docker-compose.yml` a été remplacé par la version optimisée pour Coolify avec :
-- **14 services essentiels** au lieu de 20+ services complets
+- **15 services essentiels** au lieu de 20+ services complets
 - **Architecture complète** maintenue (IoT, AI, monitoring, sécurité)
 - **Taille réduite** pour éviter les limites de Coolify
 - **Variables d'environnement** compatibles Coolify
@@ -22,8 +22,9 @@ Votre `docker-compose.yml` a été remplacé par la version optimisée pour Cool
 - **Prometheus** - Collecte de métriques
 - **Grafana** - Dashboards et visualisation
 
-### AI & Applications (3 services)
+### AI & Applications (4 services)
 - **Edge AI** - Engine d'intelligence artificielle
+- **XAI Dashboard** - Interface d'IA explicable avec SHAP/LIME
 - **Backend** - API FastAPI
 - **Frontend** - Interface utilisateur React
 
@@ -99,6 +100,7 @@ docker-compose config --quiet
 - **Grafana**: `grafana.johann-lebel.fr`
 - **Kibana SIEM**: `siem.johann-lebel.fr`
 - **Edge AI**: `edge-ai.johann-lebel.fr`
+- **XAI Dashboard**: `xai.johann-lebel.fr`
 - **Keycloak Auth**: `auth.johann-lebel.fr`
 
 ## 📊 Architecture Complète Maintenue
@@ -112,7 +114,14 @@ Malgré la taille réduite, tous les composants essentiels sont préservés :
 - ✅ **Scalability**: Redis cache, PostgreSQL, stockage S3
 - ✅ **DevOps**: Health checks, restart policies, réseaux isolés
 
-## 🔄 Services Temporairement Retirés
+### ✅ Service XAI Ajouté
+**Nouveau service intégré** :
+- **XAI Dashboard** - Interface d'IA explicable (SHAP/LIME)
+- **Domaine** : `xai.johann-lebel.fr`
+- **Port** : 8092
+- **Fonctionnalités** : Explications d'IA, visualisations SHAP, interface conversationnelle
+
+### 🔄 Services Temporairement Retirés
 
 Ces services pourront être rajoutés après le déploiement initial :
 - Digital Twin Unity 3D (nécessite GPU)
@@ -154,15 +163,26 @@ Ces services pourront être rajoutés après le déploiement initial :
 - ✅ Fichier `docker-compose.override.yml` désactivé
 - ✅ Variables d'environnement conformes aux standards POSIX
 
+### ❌ Problème Résolu: Chemin Edge AI
+**Erreur**: `lstat /artifacts/.../services/edge-ai: no such file or directory`
+
+**Solution appliquée**:
+- ✅ Correction chemin Dockerfile: `./core/edge-ai-engine/Dockerfile.simple`
+- ✅ Dockerfile simplifié sans CUDA pour compatibilité Coolify
+- ✅ Chemins COPY corrigés pour contexte de build racine
+- ✅ Image Python standard au lieu de nvidia/cuda
+
 **Fichiers modifiés**:
 - `.env` → Nouveau fichier minimal
 - `.env.local.backup` → Ancien fichier sauvegardé
 - `.env.coolify.example.disabled` → Exemple désactivé
 - `docker-compose.override.yml.disabled` → Override désactivé
+- `docker-compose.yml` → Chemin edge-ai corrigé
+- `core/edge-ai-engine/Dockerfile.simple` → Version Coolify créée
 
 ---
 
 **Status**: ✅ Prêt pour déploiement Coolify
-**Version**: Optimisée 14 services
+**Version**: Optimisée 15 services
 **Validation**: `docker-compose config` ✅ Passé
 **Correction**: Problème `$SYS` ✅ Résolu

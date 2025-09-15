@@ -1,0 +1,62 @@
+# =============================================================================
+# DOCKERFILE EDGE AI ENGINE - RNCP 39394 - VERSION COOLIFY
+# Architecture simplifiée sans CUDA pour déploiement cloud
+# =============================================================================
+
+FROM python:3.9-slim
+
+# Métadonnées du projet
+LABEL maintainer="Johann Lebel - RNCP 39394"
+LABEL project="Station-Traffeyere-IoT-AI-Platform" 
+LABEL version="1.0.0"
+
+# Variables d'environnement
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Installation des dépendances système minimales
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Création utilisateur non-privilégié
+RUN groupadd -r aiengine && useradd -r -g aiengine -d /app -s /bin/bash aiengine
+
+# Répertoire de travail
+WORKDIR /app
+
+# Copie et installation des requirements Python
+COPY core/edge-ai-engine/requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copie du code source
+COPY core/edge-ai-engine/ .
+
+# Configuration permissions
+RUN chown -R aiengine:aiengine /app && \
+    chmod -R 750 /app
+
+# Répertoires pour modèles et logs
+RUN mkdir -p /app/models /app/logs && \
+    chown -R aiengine:aiengine /app/models /app/logs
+
+# Variables d'environnement
+ENV AI_MODEL_PATH=/app/models
+ENV AI_LOG_LEVEL=INFO
+ENV AI_METRICS_PORT=8001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+# Utilisateur non-root
+USER aiengine
+
+# Port d'écoute
+EXPOSE 8001
+
+# Point d'entrée simplifié
+CMD ["python", "explainable_ai_engine.py", "--port=8001"]

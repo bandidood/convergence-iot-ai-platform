@@ -9,11 +9,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements et installation
-COPY requirements.txt .
+COPY interfaces/voice-assistant-xia/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY backend.py .
+COPY interfaces/voice-assistant-xia/backend.py .
+COPY interfaces/voice-assistant-xia/ .
 
 # Créer utilisateur non-privilégié
 RUN useradd -m -u 1001 xaiapp && chown -R xaiapp:xaiapp /app
@@ -21,8 +22,8 @@ USER xaiapp
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD curl -f http://localhost:8092/health || exit 1
 
-EXPOSE 5000 5001
+EXPOSE 8092
 
 CMD ["python", "backend.py"]

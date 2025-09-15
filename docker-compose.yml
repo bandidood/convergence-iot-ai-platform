@@ -223,9 +223,7 @@ services:
   edge-ai:
     build:
       context: .
-      dockerfile: ./services/edge-ai/Dockerfile
-      args:
-        - ENVIRONMENT=production
+      dockerfile: ./core/edge-ai-engine/Dockerfile.simple
     restart: unless-stopped
     environment:
       EDGE_AI_MODEL_PATH: /app/models
@@ -322,6 +320,7 @@ services:
         - VITE_API_URL=https://backend-station.johann-lebel.fr
         - VITE_WS_URL=wss://backend-station.johann-lebel.fr/ws
         - VITE_GRAFANA_URL=https://grafana.johann-lebel.fr
+        - VITE_XAI_URL=https://xai.johann-lebel.fr
         - VITE_KEYCLOAK_URL=https://auth.johann-lebel.fr
         - VITE_KEYCLOAK_REALM=traffeyere
         - VITE_ENVIRONMENT=production
@@ -389,6 +388,45 @@ services:
       - "traefik.http.routers.kibana.tls.certresolver=letsencrypt"
       - "traefik.http.services.kibana.loadbalancer.server.port=5601"
 
+  # XAI Dashboard Explainable AI
+  xai-dashboard:
+    build:
+      context: .
+      dockerfile: ./interfaces/voice-assistant-xia/Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      XAI_PORT: 8092
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      EDGE_AI_API_URL: http://edge-ai:8001
+      SHAP_ENABLED: true
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
+    volumes:
+      - xai_logs:/app/logs
+      - xai_models:/app/models
+    networks:
+      - backend
+      - frontend
+    depends_on:
+      redis:
+        condition: service_healthy
+      edge-ai:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8092/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.xai.rule=Host(`xai.johann-lebel.fr`)"
+      - "traefik.http.routers.xai.tls=true"
+      - "traefik.http.routers.xai.tls.certresolver=letsencrypt"
+      - "traefik.http.services.xai.loadbalancer.server.port=8092"
+
 # Volumes persistants
 volumes:
   postgres_data:
@@ -420,6 +458,10 @@ volumes:
   elasticsearch_data:
     driver: local
   kibana_data:
+    driver: local
+  xai_logs:
+    driver: local
+  xai_models:
     driver: local
 
 # Réseaux segmentés
