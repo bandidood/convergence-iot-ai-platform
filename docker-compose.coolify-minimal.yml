@@ -1,0 +1,199 @@
+version: '3.8'
+
+# =============================================================================
+# DOCKER COMPOSE COOLIFY MINIMAL - Station Traffeyère IoT/AI Platform  
+# Version minimale avec services essentiels pour déploiement Coolify réussi
+# RNCP 39394 - Architecture IoT/IA Convergente
+# =============================================================================
+
+services:
+  # =============================================================================
+  # INFRASTRUCTURE LAYER - Services essentiels
+  # =============================================================================
+  
+  # PostgreSQL avec TimescaleDB
+  postgres:
+    image: timescale/timescaledb:2.11.2-pg15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-station_traffeyere}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-station_traffeyere}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=database"
+
+  # Redis pour cache
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=database"
+
+  # =============================================================================
+  # APPLICATION LAYER - Services métier
+  # =============================================================================
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: .
+      dockerfile: ./services/backend/Dockerfile
+      args:
+        - ENVIRONMENT=production
+    restart: unless-stopped
+    environment:
+      # Configuration projet RNCP 39394
+      PROJECT_NAME: "Station Traffeyère IoT/AI Platform"
+      PROJECT_VERSION: "1.0.0"
+      RNCP_CODE: "39394"
+      ENVIRONMENT: production
+      
+      # Base de données
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-station_traffeyere}
+      
+      # Cache Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      
+      # Application sécurité
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY: ${API_KEY}
+      
+      # Station Configuration
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
+      STATION_NAME: ${STATION_NAME:-Station Traffeyère}
+      SENSOR_COUNT: ${SENSOR_COUNT:-127}
+      
+      # Monitoring
+      LOG_LEVEL: info
+      
+    volumes:
+      - backend_logs:/app/logs
+    networks:
+      - backend
+      - frontend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.johann-lebel.fr`)"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "coolify.managed=true"
+      - "coolify.type=application"
+
+  # Frontend React
+  frontend:
+    build:
+      context: .
+      dockerfile: ./services/frontend/Dockerfile
+      args:
+        - VITE_API_URL=https://api.johann-lebel.fr
+        - VITE_ENVIRONMENT=production
+        - VITE_VERSION=1.0.0
+    restart: unless-stopped
+    environment:
+      NGINX_WORKER_PROCESSES: auto
+      NGINX_WORKER_CONNECTIONS: 1024
+    networks:
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`traffeyere.johann-lebel.fr`) || Host(`www.traffeyere.johann-lebel.fr`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "coolify.managed=true"
+      - "coolify.type=application"
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_logs:
+    driver: local
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
