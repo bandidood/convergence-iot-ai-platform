@@ -143,8 +143,26 @@ Ces services pourront être rajoutés après le déploiement initial :
 5. 🔄 Tests de bout en bout
 6. 🔄 Ajout progressif des services avancés
 
+## 🛠️ Corrections Appliquées
+
+### ❌ Problème Résolu: Variable `$SYS` 
+**Erreur**: `failed to read /artifacts/.env: line 41: unexpected character "$" in variable name "$SYS="`
+
+**Solution appliquée**:
+- ✅ Fichiers `.env` problématiques désactivés
+- ✅ Nouveau fichier `.env` minimal et propre créé
+- ✅ Fichier `docker-compose.override.yml` désactivé
+- ✅ Variables d'environnement conformes aux standards POSIX
+
+**Fichiers modifiés**:
+- `.env` → Nouveau fichier minimal
+- `.env.local.backup` → Ancien fichier sauvegardé
+- `.env.coolify.example.disabled` → Exemple désactivé
+- `docker-compose.override.yml.disabled` → Override désactivé
+
 ---
 
 **Status**: ✅ Prêt pour déploiement Coolify
 **Version**: Optimisée 14 services
 **Validation**: `docker-compose config` ✅ Passé
+**Correction**: Problème `$SYS` ✅ Résolu
