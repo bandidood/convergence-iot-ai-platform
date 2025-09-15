@@ -1,17 +1,13 @@
 version: '3.8'
 
-# =============================================================================
-# DOCKER COMPOSE COOLIFY FIXED - Station Traffeyère IoT/AI Platform  
-# Architecture complète corrigée pour Coolify - RNCP 39394
-# Fixes: Variable SYS + Container_name/replicas conflict
-# =============================================================================
+# ============================================================================
+# DOCKER COMPOSE COOLIFY OPTIMIZED - Station Traffeyère IoT/AI Platform
+# Architecture compacte optimisée pour Coolify - RNCP 39394
+# Tous les services essentiels en version allégée
+# ============================================================================
 
 services:
-  # =============================================================================
-  # INFRASTRUCTURE LAYER - Bases de données et stockage
-  # =============================================================================
-  
-  # PostgreSQL avec TimescaleDB pour les séries temporelles
+  # Base de données principale
   postgres:
     image: timescale/timescaledb:2.11.2-pg15
     restart: unless-stopped
@@ -19,39 +15,24 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-station_traffeyere}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init-scripts:/docker-entrypoint-initdb.d:ro
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-station_traffeyere}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    labels:
-      - "coolify.managed=true"
-      - "coolify.type=database"
 
-  # Redis pour cache et sessions
+  # Cache Redis
   redis:
     image: redis:7.2-alpine
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --appendfsync everysec --maxmemory 2gb --maxmemory-policy allkeys-lru
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     volumes:
       - redis_data:/data
-      - ./configurations/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - backend
     healthcheck:
@@ -59,19 +40,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.1'
-          memory: 256M
-    labels:
-      - "coolify.managed=true"
-      - "coolify.type=database"
 
-  # InfluxDB v2 pour métriques IoT haute fréquence
+  # InfluxDB pour métriques IoT
   influxdb:
     image: influxdb:2.7-alpine
     restart: unless-stopped
@@ -82,11 +52,8 @@ services:
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-traffeyere}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_ADMIN_TOKEN}
-      INFLUXD_STORAGE_ENGINE: tsm1
-      INFLUXD_DATA_MAX_SERIES_PER_DATABASE: 10000000
     volumes:
       - influxdb_data:/var/lib/influxdb2
-      - influxdb_config:/etc/influxdb2
     networks:
       - backend
     healthcheck:
@@ -94,23 +61,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '1.5'
-          memory: 2G
-        reservations:
-          cpus: '0.2'
-          memory: 256M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.influxdb.rule=Host(`influx.johann-lebel.fr`)"
       - "traefik.http.routers.influxdb.tls=true"
       - "traefik.http.routers.influxdb.tls.certresolver=letsencrypt"
       - "traefik.http.services.influxdb.loadbalancer.server.port=8086"
-      - "coolify.managed=true"
 
-  # MinIO pour stockage objet S3-compatible
+  # MinIO stockage S3
   minio:
     image: minio/minio:RELEASE.2024-01-01T16-36-33Z
     restart: unless-stopped
@@ -118,7 +76,6 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_CONSOLE_ADDRESS: ":9090"
-      MINIO_SERVER_URL: https://minio.johann-lebel.fr
     command: server /data --console-address ":9090"
     volumes:
       - minio_data:/data
@@ -129,181 +86,98 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.1'
-          memory: 128M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.minio-api.rule=Host(`minio.johann-lebel.fr`)"
-      - "traefik.http.routers.minio-api.service=minio-api"
       - "traefik.http.routers.minio-api.tls=true"
       - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
       - "traefik.http.routers.minio-console.rule=Host(`minio-console.johann-lebel.fr`)"
-      - "traefik.http.routers.minio-console.service=minio-console"
       - "traefik.http.routers.minio-console.tls=true"
       - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
       - "traefik.http.services.minio-console.loadbalancer.server.port=9090"
-      - "coolify.managed=true"
 
-  # =============================================================================
-  # IDENTITY & ACCESS MANAGEMENT - Keycloak
-  # =============================================================================
-
+  # Keycloak Identity Management
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.1
     restart: unless-stopped
     environment:
-      # Configuration admin
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      
-      # Configuration base de données
       KC_DB: postgres
       KC_DB_URL_HOST: postgres
       KC_DB_URL_DATABASE: keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      
-      # Configuration réseau
       KC_HOSTNAME: auth.johann-lebel.fr
-      KC_HOSTNAME_STRICT: false
-      KC_HOSTNAME_STRICT_HTTPS: true
-      KC_PROXY: edge
-      
-      # Configuration sécurité
       KC_HTTP_ENABLED: true
-      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/tls.crt
-      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/tls.key
-      
-      # Configuration performance
-      KC_CACHE: ispn
-      KC_CACHE_STACK: kubernetes
-      
+      KC_PROXY: edge
     command:
       - start
       - --auto-build
       - --db=postgres
-      - --features=token-exchange,admin-fine-grained-authz
-      - --import-realm
-      
     volumes:
       - keycloak_data:/opt/keycloak/data
-      - ./configurations/keycloak/realm:/opt/keycloak/data/import:ro
-      - ./configurations/keycloak/themes:/opt/keycloak/themes:ro
-      
     networks:
       - backend
       - frontend
-      
     depends_on:
       postgres:
         condition: service_healthy
-        
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/auth/realms/master || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-      
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-          
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`auth.johann-lebel.fr`)"
       - "traefik.http.routers.keycloak.tls=true"
       - "traefik.http.routers.keycloak.tls.certresolver=letsencrypt"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
-      - "coolify.managed=true"
-      - "coolify.type=authentication"
 
-  # =============================================================================
-  # MONITORING & OBSERVABILITY LAYER
-  # =============================================================================
-
-  # Prometheus - Métriques et monitoring
+  # Prometheus métriques
   prometheus:
     image: prom/prometheus:v2.47.2
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
-      - '--web.enable-admin-api'
       - '--storage.tsdb.retention.time=30d'
     volumes:
       - prometheus_data:/prometheus
-      - ./configurations/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./configurations/prometheus/rules:/etc/prometheus/rules:ro
     networks:
       - backend
-      - frontend
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.1'
-          memory: 256M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.rule=Host(`metrics.johann-lebel.fr`)"
       - "traefik.http.routers.prometheus.tls=true"
       - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-      - "coolify.managed=true"
 
-  # Grafana - Visualisation et dashboards
+  # Grafana dashboards
   grafana:
     image: grafana/grafana:10.2.0
     restart: unless-stopped
     environment:
-      # Configuration admin
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      
-      # Configuration base de données
       GF_DATABASE_TYPE: postgres
       GF_DATABASE_HOST: postgres:5432
       GF_DATABASE_NAME: grafana
       GF_DATABASE_USER: grafana
       GF_DATABASE_PASSWORD: ${GRAFANA_DB_PASSWORD}
-      
-      # Configuration serveur
       GF_SERVER_DOMAIN: grafana.johann-lebel.fr
       GF_SERVER_ROOT_URL: https://grafana.johann-lebel.fr
-      
-      # Plugins et features
-      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel,natel-discrete-panel,vonage-status-panel,btplc-trend-box-panel
-      GF_FEATURE_TOGGLES_ENABLE: publicDashboards,scenes
-      
-      # InfluxDB datasource
-      GF_SECURITY_ALLOW_EMBEDDING: true
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./configurations/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./configurations/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - backend
       - frontend
@@ -316,153 +190,36 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.2'
-          memory: 256M
+      retries: 3
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`grafana.johann-lebel.fr`)"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-      - "coolify.managed=true"
 
-  # AlertManager - Gestion centralisée des alertes
-  alertmanager:
-    image: prom/alertmanager:v0.26.0
-    restart: unless-stopped
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
-      - '--web.external-url=https://alerts.johann-lebel.fr'
-    environment:
-      # Configuration notifications
-      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
-      PAGERDUTY_INTEGRATION_KEY: ${PAGERDUTY_INTEGRATION_KEY}
-      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.gmail.com}
-      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
-      EMAIL_FROM: ${EMAIL_FROM:-alerts@johann-lebel.fr}
-      EMAIL_TO: ${EMAIL_TO}
-    volumes:
-      - alertmanager_data:/alertmanager
-      - ./configurations/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - ./configurations/alertmanager/templates:/etc/alertmanager/templates:ro
-    networks:
-      - backend
-      - frontend
-    depends_on:
-      prometheus:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.alertmanager.rule=Host(`alerts.johann-lebel.fr`)"
-      - "traefik.http.routers.alertmanager.tls=true"
-      - "traefik.http.routers.alertmanager.tls.certresolver=letsencrypt"
-      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
-      - "coolify.managed=true"
-
-  # Logstash - Pipeline traitement logs pour alertes ELK
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.11.1
-    restart: unless-stopped
-    environment:
-      LS_JAVA_OPTS: "-Xmx1g -Xms1g"
-      ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
-      MONITORING_ENABLED: false
-    volumes:
-      - ./configurations/logstash/pipeline:/usr/share/logstash/pipeline:ro
-      - ./configurations/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - logstash_data:/usr/share/logstash/data
-    networks:
-      - backend
-      - iot_network
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1.5G
-        reservations:
-          cpus: '0.2'
-          memory: 512M
-    labels:
-      - "coolify.managed=true"
-
-  # =============================================================================
-  # IOT COMMUNICATION LAYER
-  # =============================================================================
-
-  # MQTT Broker Eclipse Mosquitto - FIXED: Sans variable problématique
+  # MQTT Broker
   mosquitto:
     image: eclipse-mosquitto:2.0.18
     restart: unless-stopped
     volumes:
-      - ./configurations/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./configurations/mosquitto/users:/mosquitto/config/users:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_logs:/mosquitto/log
     networks:
       - backend
       - iot_network
     healthcheck:
-      # FIX: Healthcheck simplifié sans variable SYS problématique
-      test: ["CMD", "sh", "-c", "mosquitto_pub -h localhost -p 1883 -t test/health -m ping && echo 'MQTT OK'"]
+      test: ["CMD", "sh", "-c", "mosquitto_pub -h localhost -p 1883 -t test/health -m ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
     labels:
       - "traefik.enable=true"
       - "traefik.tcp.routers.mqtt.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.mqtt.entrypoints=mqtt"
-      - "traefik.tcp.routers.mqtt.service=mqtt"
       - "traefik.tcp.services.mqtt.loadbalancer.server.port=1883"
-      - "traefik.http.routers.mqtt-ws.rule=Host(`mqtt.johann-lebel.fr`)"
-      - "traefik.http.routers.mqtt-ws.tls=true"
-      - "traefik.http.routers.mqtt-ws.tls.certresolver=letsencrypt"
-      - "traefik.http.services.mqtt-ws.loadbalancer.server.port=8083"
-      - "coolify.managed=true"
 
-  # =============================================================================
-  # EDGE AI & ANALYTICS LAYER
-  # =============================================================================
-
-  # Edge AI Engine - Traitement IA temps réel sub-milliseconde
+  # Edge AI Engine
   edge-ai:
     build:
       context: .
@@ -471,34 +228,17 @@ services:
         - ENVIRONMENT=production
     restart: unless-stopped
     environment:
-      # Configuration Edge AI
       EDGE_AI_MODEL_PATH: /app/models
-      EDGE_AI_INFERENCE_TIMEOUT: 1  # 1ms max
-      EDGE_AI_BATCH_SIZE: 1
+      EDGE_AI_INFERENCE_TIMEOUT: 1
       ANOMALY_THRESHOLD: 0.85
-      SHAP_ENABLED: true
-      
-      # Base de données
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: ${INFLUX_ADMIN_TOKEN}
-      INFLUX_ORG: ${INFLUX_ORG:-traffeyere}
-      INFLUX_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
-      
-      # MQTT Communication
       MQTT_BROKER_HOST: mosquitto
       MQTT_BROKER_PORT: 1883
-      MQTT_USERNAME: ${MQTT_USERNAME:-iot_station}
-      MQTT_PASSWORD: ${MQTT_PASSWORD}
-      
-      # Monitoring
-      PROMETHEUS_ENABLED: true
-      METRICS_PORT: 8001
-      
     volumes:
       - edge_ai_models:/app/models
       - edge_ai_cache:/app/cache
-      - edge_ai_logs:/app/logs
     networks:
       - backend
       - iot_network
@@ -511,31 +251,17 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 15s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.edge-ai.rule=Host(`edge-ai.johann-lebel.fr`)"
       - "traefik.http.routers.edge-ai.tls=true"
       - "traefik.http.routers.edge-ai.tls.certresolver=letsencrypt"
       - "traefik.http.services.edge-ai.loadbalancer.server.port=8001"
-      - "coolify.managed=true"
 
-  # =============================================================================
-  # APPLICATION LAYER
-  # =============================================================================
-
-  # Backend FastAPI avec Edge AI intégré
+  # Backend FastAPI
   backend:
     build:
       context: .
@@ -544,82 +270,34 @@ services:
         - ENVIRONMENT=production
     restart: unless-stopped
     environment:
-      # Configuration projet RNCP 39394
       PROJECT_NAME: "Station Traffeyère IoT/AI Platform"
-      PROJECT_VERSION: "1.0.0"
       RNCP_CODE: "39394"
       ENVIRONMENT: production
-      
-      # Base de données
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-station_traffeyere}
-      
-      # Cache Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      
-      # InfluxDB Time Series
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: ${INFLUX_ADMIN_TOKEN}
-      INFLUX_ORG: ${INFLUX_ORG:-traffeyere}
-      INFLUX_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
-      
-      # MinIO/S3
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${MINIO_ROOT_USER}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-      S3_BUCKET: ${S3_BUCKET:-traffeyere-data}
-      
-      # Application sécurité
       SECRET_KEY: ${SECRET_KEY}
       JWT_SECRET: ${JWT_SECRET}
-      API_KEY: ${API_KEY}
-      
-      # Keycloak Integration
       KEYCLOAK_URL: http://keycloak:8080/auth
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-traffeyere}
-      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-station-backend}
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      
-      # MQTT
       MQTT_BROKER_HOST: mosquitto
       MQTT_BROKER_PORT: 1883
-      MQTT_USERNAME: ${MQTT_USERNAME:-iot_station}
-      MQTT_PASSWORD: ${MQTT_PASSWORD}
-      
-      # Station Configuration
       STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
-      STATION_NAME: ${STATION_NAME:-Station Traffeyère}
-      STATION_LOCATION: ${STATION_LOCATION:-45.764043,4.835659}
-      SENSOR_COUNT: ${SENSOR_COUNT:-127}
-      
-      # Edge AI Configuration
       AI_MODEL_PATH: /app/models
-      AI_INFERENCE_TIMEOUT: 280
-      SHAP_ENABLED: true
-      ANOMALY_THRESHOLD: 0.85
-      
-      # Monitoring
-      PROMETHEUS_ENABLED: true
-      LOG_LEVEL: info
-      JAEGER_ENABLED: false
-      
     volumes:
       - backend_logs:/app/logs
       - backend_models:/app/models
-      - backend_uploads:/app/uploads
-      - backend_cache:/app/cache
     networks:
       - backend
-      - iot_network
       - frontend
+      - iot_network
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      influxdb:
-        condition: service_healthy
-      mosquitto:
         condition: service_healthy
       keycloak:
         condition: service_healthy
@@ -628,32 +306,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-    # FIX: Retrait de replicas pour éviter conflit avec container_name dans Coolify
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`backend-station.johann-lebel.fr`) || Host(`api.johann-lebel.fr`)"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
-      - "traefik.http.services.backend.loadbalancer.healthcheck.path=/health"
-      - "traefik.http.services.backend.loadbalancer.healthcheck.interval=30s"
-      - "coolify.managed=true"
-      - "coolify.type=application"
 
-  # Frontend Dashboard React avec XAI intégré - FIXED
+  # Frontend React
   frontend:
     build:
       context: .
@@ -662,18 +322,10 @@ services:
         - VITE_API_URL=https://backend-station.johann-lebel.fr
         - VITE_WS_URL=wss://backend-station.johann-lebel.fr/ws
         - VITE_GRAFANA_URL=https://grafana.johann-lebel.fr
-        - VITE_MQTT_WS_URL=wss://mqtt.johann-lebel.fr
-        - VITE_XAI_URL=https://xai.johann-lebel.fr
-        - VITE_DIGITAL_TWIN_URL=https://digitaltwin.johann-lebel.fr
         - VITE_KEYCLOAK_URL=https://auth.johann-lebel.fr
         - VITE_KEYCLOAK_REALM=traffeyere
-        - VITE_KEYCLOAK_CLIENT_ID=station-frontend
         - VITE_ENVIRONMENT=production
-        - VITE_VERSION=1.0.0
     restart: unless-stopped
-    environment:
-      NGINX_WORKER_PROCESSES: auto
-      NGINX_WORKER_CONNECTIONS: 1024
     networks:
       - frontend
     healthcheck:
@@ -681,102 +333,14 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
-    # FIX: Retrait de replicas + container_name pour compatibilité Coolify
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`frontend-station.johann-lebel.fr`) || Host(`traffeyere.johann-lebel.fr`) || Host(`www.traffeyere.johann-lebel.fr`)"
+      - "traefik.http.routers.frontend.rule=Host(`frontend-station.johann-lebel.fr`) || Host(`traffeyere.johann-lebel.fr`)"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
-      - "traefik.http.services.frontend.loadbalancer.healthcheck.path=/healthz"
-      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www.(.*)"
-      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
-      - "traefik.http.routers.frontend.middlewares=www-redirect@docker"
-      - "coolify.managed=true"
-      - "coolify.type=application"
 
-  # =============================================================================
-  # DIGITAL TWIN & 3D VISUALIZATION
-  # =============================================================================
-
-  # Digital Twin Unity - Interface 3D immersive
-  digital-twin:
-    build:
-      context: .
-      dockerfile: ./services/digital-twin/Dockerfile
-      args:
-        - UNITY_VERSION=2022.3.21f1
-        - BUILD_TARGET=WebGL
-    restart: unless-stopped
-    environment:
-      # Configuration Unity
-      UNITY_SERVER_MODE: true
-      UNITY_WEBGL_PORT: 8080
-      UNITY_LOG_LEVEL: info
-      
-      # Connexions temps réel
-      BACKEND_API_URL: http://backend:8000
-      WEBSOCKET_URL: ws://backend:8000/ws
-      MQTT_WS_URL: ws://mosquitto:8083/mqtt
-      
-      # Digital Twin Configuration
-      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
-      STATION_NAME: ${STATION_NAME:-Station Traffeyère}
-      STATION_LOCATION: ${STATION_LOCATION:-45.764043,4.835659}
-      
-      # Visualisation 3D
-      ENABLE_VR: true
-      ENABLE_AR: true
-      PHYSICS_SIMULATION: true
-      REAL_TIME_SYNC: true
-      
-    volumes:
-      - digital_twin_assets:/app/StreamingAssets
-      - digital_twin_logs:/app/Logs
-    networks:
-      - frontend
-      - backend
-    depends_on:
-      backend:
-        condition: service_healthy
-      edge-ai:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.5'
-          memory: 1.5G
-        reservations:
-          cpus: '0.3'
-          memory: 512M
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.digital-twin.rule=Host(`digitaltwin.johann-lebel.fr`)"
-      - "traefik.http.routers.digital-twin.tls=true"
-      - "traefik.http.routers.digital-twin.tls.certresolver=letsencrypt"
-      - "traefik.http.services.digital-twin.loadbalancer.server.port=8080"
-      - "coolify.managed=true"
-
-  # =============================================================================
-  # CYBERSECURITY & SIEM LAYER
-  # =============================================================================
-
-  # Elasticsearch - Moteur de recherche pour SIEM
+  # Elasticsearch SIEM
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     restart: unless-stopped
@@ -785,47 +349,27 @@ services:
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - cluster.name=traffeyere-siem
-      - node.name=es-node-1
-      - bootstrap.memory_lock=true
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
-      - ./configurations/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
     networks:
       - backend
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-    labels:
-      - "coolify.managed=true"
 
-  # Kibana - Interface SIEM et visualisation sécurité
+  # Kibana SIEM Dashboard
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.1
     restart: unless-stopped
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
       SERVER_NAME: siem.johann-lebel.fr
-      SERVER_HOST: 0.0.0.0
       XPACK_SECURITY_ENABLED: false
-      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY}
     volumes:
       - kibana_data:/usr/share/kibana/data
-      - ./configurations/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
     networks:
       - backend
       - frontend
@@ -836,121 +380,53 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.2'
-          memory: 256M
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.kibana.rule=Host(`siem.johann-lebel.fr`)"
       - "traefik.http.routers.kibana.tls=true"
       - "traefik.http.routers.kibana.tls.certresolver=letsencrypt"
       - "traefik.http.services.kibana.loadbalancer.server.port=5601"
-      - "coolify.managed=true"
 
-# =============================================================================
-# VOLUMES - Persistance de données
-# =============================================================================
+# Volumes persistants
 volumes:
-  # Bases de données
   postgres_data:
     driver: local
   redis_data:
     driver: local
   influxdb_data:
     driver: local
-  influxdb_config:
-    driver: local
-    
-  # Stockage objet
   minio_data:
     driver: local
-    
-  # MQTT
-  mosquitto_data:
-    driver: local
-  mosquitto_logs:
-    driver: local
-    
-  # Application
-  backend_logs:
-    driver: local
-  backend_models:
-    driver: local
-  backend_uploads:
-    driver: local
-  backend_cache:
-    driver: local
-    
-  # Keycloak IAM
   keycloak_data:
     driver: local
-    
-  # Monitoring Stack
   prometheus_data:
     driver: local
   grafana_data:
     driver: local
-    
-  # Edge AI
+  mosquitto_data:
+    driver: local
+  mosquitto_logs:
+    driver: local
   edge_ai_models:
     driver: local
   edge_ai_cache:
     driver: local
-  edge_ai_logs:
+  backend_logs:
     driver: local
-    
-  # Digital Twin
-  digital_twin_assets:
+  backend_models:
     driver: local
-  digital_twin_logs:
-    driver: local
-    
-  # SIEM Stack  
   elasticsearch_data:
     driver: local
   kibana_data:
     driver: local
-  logstash_data:
-    driver: local
-    
-  # Alert Management
-  alertmanager_data:
-    driver: local
 
-# =============================================================================
-# NETWORKS - Segmentation réseau
-# =============================================================================
+# Réseaux segmentés
 networks:
-  # Réseau backend pour services internes
   backend:
     driver: bridge
-    internal: false
-    attachable: true
-    ipam:
-      config:
-        - subnet: 172.31.0.0/16
-    
-  # Réseau frontend pour interfaces utilisateur
   frontend:
     driver: bridge
-    internal: false
-    attachable: true
-    ipam:
-      config:
-        - subnet: 172.32.0.0/16
-    
-  # Réseau IoT pour communication avec capteurs
   iot_network:
     driver: bridge
-    internal: false
-    attachable: true
-    ipam:
-      config:
-        - subnet: 172.33.0.0/16

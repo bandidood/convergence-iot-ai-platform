@@ -1,0 +1,202 @@
+# ================================================================
+# DOCKER COMPOSE OVERRIDE - DÉVELOPPEMENT LOCAL
+# Station Traffeyère IoT/AI Platform - Configuration Development
+# ================================================================
+# Ce fichier est automatiquement fusionné avec docker-compose.yml
+# Utilisé pour les overrides de développement local
+
+version: '3.8'
+
+services:
+  # PostgreSQL - Override pour développement
+  postgres:
+    environment:
+      - POSTGRES_DB=station_traffeyere_dev
+      - POSTGRES_USER=dev_user
+    volumes:
+      - ./data/postgres-dev:/var/lib/postgresql/data
+      - ./database/init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"  # Exposition pour debug
+
+  # Redis - Override pour développement
+  redis:
+    ports:
+      - "6379:6379"  # Exposition pour debug
+    volumes:
+      - ./data/redis-dev:/data
+
+  # InfluxDB - Override pour développement
+  influxdb:
+    environment:
+      - INFLUXDB_DB=station_dev
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin123
+    ports:
+      - "8086:8086"  # Exposition pour debug
+    volumes:
+      - ./data/influxdb-dev:/var/lib/influxdb
+
+  # MQTT Mosquitto - Override pour développement
+  mosquitto:
+    ports:
+      - "1883:1883"   # MQTT standard
+      - "9001:9001"   # WebSocket
+    volumes:
+      - ./configurations/mosquitto/dev-config:/mosquitto/config
+      - ./logs/mosquitto:/mosquitto/log
+
+  # Kong API Gateway - Override pour développement
+  kong:
+    environment:
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+      - KONG_LOG_LEVEL=debug
+    ports:
+      - "8001:8001"   # Admin API
+      - "8444:8444"   # Admin API SSL
+
+  # Edge AI Engine - Override pour développement
+  edge-ai-engine:
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./core/edge-ai-engine/src:/app/src
+      - ./logs/edge-ai:/app/logs
+    command: ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
+
+  # Data Generator - Override pour développement  
+  data-generator:
+    environment:
+      - SIMULATION_MODE=development
+      - DATA_INTERVAL=5  # 5 secondes en dev vs 1s en prod
+      - ANOMALY_RATE=0.1  # Plus d'anomalies en dev pour tests
+    volumes:
+      - ./core/iot-data-generator:/app
+      - ./data/simulation:/app/output
+
+  # Web Dashboard - Override pour développement
+  web-dashboard:
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./interfaces/web-dashboard/src:/app/src
+      - ./interfaces/web-dashboard/public:/app/public
+    command: ["npm", "start"]
+    stdin_open: true
+    tty: true
+
+  # Digital Twin - Override pour développement
+  digital-twin:
+    environment:
+      - UNITY_ENV=development
+      - DEBUG_MODE=true
+    volumes:
+      - ./core/digital-twin/Assets:/app/Assets
+      - ./core/digital-twin/Scripts:/app/Scripts
+
+  # Grafana - Override pour développement
+  grafana:
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=dev123
+      - GF_USERS_ALLOW_SIGN_UP=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+    volumes:
+      - ./configurations/grafana/dev-dashboards:/var/lib/grafana/dashboards
+      - ./configurations/grafana/dev.ini:/etc/grafana/grafana.ini
+
+  # Prometheus - Override pour développement
+  prometheus:
+    volumes:
+      - ./configurations/prometheus/dev-prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./configurations/prometheus/dev-rules:/etc/prometheus/rules
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'  # Moins de rétention en dev
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--log.level=debug'
+
+# Services additionnels pour développement
+  # Hot Reload Proxy pour React
+  webpack-dev-server:
+    image: node:18-alpine
+    container_name: station-webpack-dev
+    working_dir: /app
+    volumes:
+      - ./interfaces/web-dashboard:/app
+    ports:
+      - "3001:3000"
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+    networks:
+      - iot-network
+
+  # pgAdmin pour debug PostgreSQL
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: station-pgadmin-dev
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@station.local
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    ports:
+      - "8082:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - iot-network
+    depends_on:
+      - postgres
+
+  # Redis Commander pour debug Redis
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: station-redis-commander-dev
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - iot-network
+    depends_on:
+      - redis
+
+  # File Browser pour debug volumes
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: station-filebrowser-dev
+    ports:
+      - "8083:80"
+    volumes:
+      - .:/srv
+      - ./data:/srv/data
+    environment:
+      - FB_BASEURL=/files
+    networks:
+      - iot-network
+
+volumes:
+  pgadmin-data:
+    driver: local
+
+# Network overrides pour développement
+networks:
+  iot-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
