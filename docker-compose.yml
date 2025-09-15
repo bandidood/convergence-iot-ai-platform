@@ -334,6 +334,88 @@ services:
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
       - "coolify.managed=true"
 
+  # AlertManager - Gestion centralisée des alertes
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=https://alerts.johann-lebel.fr'
+    environment:
+      # Configuration notifications
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+      PAGERDUTY_INTEGRATION_KEY: ${PAGERDUTY_INTEGRATION_KEY}
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.gmail.com}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_FROM: ${EMAIL_FROM:-alerts@johann-lebel.fr}
+      EMAIL_TO: ${EMAIL_TO}
+    volumes:
+      - alertmanager_data:/alertmanager
+      - ./configurations/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./configurations/alertmanager/templates:/etc/alertmanager/templates:ro
+    networks:
+      - backend
+      - frontend
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`alerts.johann-lebel.fr`)"
+      - "traefik.http.routers.alertmanager.tls=true"
+      - "traefik.http.routers.alertmanager.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+      - "coolify.managed=true"
+
+  # Logstash - Pipeline traitement logs pour alertes ELK
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.1
+    restart: unless-stopped
+    environment:
+      LS_JAVA_OPTS: "-Xmx1g -Xms1g"
+      ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
+      MONITORING_ENABLED: false
+    volumes:
+      - ./configurations/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./configurations/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - logstash_data:/usr/share/logstash/data
+    networks:
+      - backend
+      - iot_network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1.5G
+        reservations:
+          cpus: '0.2'
+          memory: 512M
+    labels:
+      - "coolify.managed=true"
+
   # =============================================================================
   # IOT COMMUNICATION LAYER
   # =============================================================================
@@ -830,10 +912,16 @@ volumes:
   digital_twin_logs:
     driver: local
     
-  # SIEM Stack
+  # SIEM Stack  
   elasticsearch_data:
     driver: local
   kibana_data:
+    driver: local
+  logstash_data:
+    driver: local
+    
+  # Alert Management
+  alertmanager_data:
     driver: local
 
 # =============================================================================
