@@ -7,10 +7,10 @@ version: '3.8'
 # ============================================================================
 
 x-common-healthcheck: &common-healthcheck
-  interval: 60s
-  timeout: 15s
+  interval: 45s
+  timeout: 10s
   retries: 3
-  start_period: 30s
+  start_period: 60s
 
 x-resource-limits: &resource-limits-small
   cpus: '0.5'
@@ -71,8 +71,11 @@ services:
           cpus: '0.25'
           memory: 256M
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--latency-history", "-c", "1"]
-      <<: *common-healthcheck
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   # InfluxDB avec cache optimisé
   influxdb:
@@ -101,8 +104,11 @@ services:
           cpus: '0.5'
           memory: 512M
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "--timeout=10", "http://localhost:8086/ping"]
-      <<: *common-healthcheck
+      test: ["CMD", "wget", "-qO-", "--timeout=5", "http://localhost:8086/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.influxdb.rule=Host(`influx.johann-lebel.fr`)"
@@ -135,8 +141,11 @@ services:
           cpus: '0.5'
           memory: 512M
     healthcheck:
-      test: ["CMD", "curl", "-f", "--max-time", "10", "http://localhost:9000/minio/health/live"]
-      <<: *common-healthcheck
+      test: ["CMD", "curl", "-f", "--max-time", "5", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.minio-api.rule=Host(`minio.johann-lebel.fr`)"
@@ -243,8 +252,11 @@ services:
           cpus: '0.5'
           memory: 512M
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "--timeout=5", "http://localhost:9090/-/healthy"]
-      <<: *common-healthcheck
+      test: ["CMD", "wget", "-qO-", "--timeout=3", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 45s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.rule=Host(`metrics.johann-lebel.fr`)"
@@ -307,8 +319,11 @@ services:
           cpus: '0.5'
           memory: 512M
     healthcheck:
-      test: ["CMD-SHELL", "curl -f --max-time 5 http://localhost:3000/api/health || exit 1"]
-      <<: *common-healthcheck
+      test: ["CMD-SHELL", "curl -f --max-time 3 http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 90s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`grafana.johann-lebel.fr`)"
