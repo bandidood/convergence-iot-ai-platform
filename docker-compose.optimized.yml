@@ -701,29 +701,17 @@ volumes:
       o: bind
       device: ./models/xai
 
-# Réseaux segmentés optimisés
+# Réseaux segmentés simplifiés pour éviter les conflits
 networks:
   backend:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/24
     driver_opts:
-      com.docker.network.bridge.name: br-traffeyere-backend
+      com.docker.network.driver.mtu: 1500
   frontend:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.21.0.0/24
     driver_opts:
-      com.docker.network.bridge.name: br-traffeyere-frontend
+      com.docker.network.driver.mtu: 1500
   iot_network:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.22.0.0/24
     driver_opts:
-      com.docker.network.bridge.name: br-traffeyere-iot
+      com.docker.network.driver.mtu: 1500
