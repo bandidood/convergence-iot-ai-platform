@@ -72,7 +72,6 @@ services:
     volumes:
       - mosquitto_data:/mosquitto/data
       - mosquitto_logs:/mosquitto/log
-      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     networks:
       - backend
       - iot_network
@@ -95,7 +94,6 @@ services:
       - '--web.enable-admin-api'
     volumes:
       - prometheus_data:/prometheus
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - backend
     healthcheck:
@@ -118,8 +116,6 @@ services:
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - backend
       - frontend
