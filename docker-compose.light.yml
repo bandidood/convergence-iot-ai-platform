@@ -96,6 +96,7 @@ services:
       - '--web.enable-admin-api'
     volumes:
       - prometheus_data:/prometheus
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - backend
     healthcheck:
@@ -118,6 +119,8 @@ services:
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - backend
       - frontend
@@ -193,6 +196,31 @@ services:
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  # Générateur de données IoT pour simulation
+  iot-data-generator:
+    build:
+      context: ./core/iot-data-generator
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
+      GENERATION_INTERVAL: ${IOT_GENERATION_INTERVAL:-30}
+      SIMULATE_SENSORS: "temperature,ph,turbidity,flow_rate,pressure,conductivity"
+    networks:
+      - iot_network
+      - backend
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import paho.mqtt.client as mqtt; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
 
   # Frontend React
   frontend:
