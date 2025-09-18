@@ -1,0 +1,336 @@
+version: '3.8'
+
+# ============================================================================
+# MONITORING LAYER - Station Traffeyère IoT/AI Platform
+# Prometheus, Grafana, AlertManager, Observabilité
+# ============================================================================
+
+services:
+  # Prometheus - Collecte de métriques
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    container_name: traffeyere-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-admin-api'
+      - '--web.external-url=http://localhost:9090'
+      - '--storage.tsdb.wal-compression'
+    volumes:
+      - prometheus_data:/prometheus
+      - prometheus_config:/etc/prometheus
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/prometheus/rules:/etc/prometheus/rules:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring-network
+      - backend
+    external_links:
+      - postgres
+      - redis
+      - influxdb
+      - backend
+      - edge-ai-engine
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Grafana - Dashboards et visualisation
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: traffeyere-grafana
+    restart: unless-stopped
+    user: "472"
+    environment:
+      # Administration
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      
+      # Configuration serveur
+      GF_SERVER_HTTP_PORT: 3000
+      GF_SERVER_PROTOCOL: http
+      GF_SERVER_DOMAIN: localhost
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      
+      # Database PostgreSQL
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: postgres:5432
+      GF_DATABASE_NAME: ${GRAFANA_DB_NAME:-grafana}
+      GF_DATABASE_USER: ${POSTGRES_USER:-postgres}
+      GF_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      GF_DATABASE_SSL_MODE: disable
+      
+      # Plugins
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel,grafana-piechart-panel
+      
+      # Provisioning
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      
+      # Sessions
+      GF_SESSION_PROVIDER: redis
+      GF_SESSION_PROVIDER_CONFIG: addr=redis:6379,pool_size=100,db=3,password=${REDIS_PASSWORD}
+      
+      # Analytics
+      GF_ANALYTICS_REPORTING_ENABLED: false
+      GF_ANALYTICS_CHECK_FOR_UPDATES: false
+      
+      # Alerting
+      GF_ALERTING_ENABLED: true
+      GF_UNIFIED_ALERTING_ENABLED: true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - grafana_logs:/var/log/grafana
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoring-network
+      - backend
+      - frontend
+    external_links:
+      - postgres
+      - redis
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # AlertManager - Gestion des alertes
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: traffeyere-alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--cluster.advertise-address=0.0.0.0:9093'
+    environment:
+      # Notifications
+      SMTP_SMARTHOST: ${SMTP_SMARTHOST:-smtp.gmail.com:587}
+      SMTP_FROM: ${SMTP_FROM:-alerts@traffeyere.com}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      
+      # Slack Webhooks
+      SLACK_WEBHOOK_CRITICAL: ${SLACK_WEBHOOK_CRITICAL}
+      SLACK_WEBHOOK_WARNING: ${SLACK_WEBHOOK_WARNING}
+      SLACK_WEBHOOK_INFO: ${SLACK_WEBHOOK_INFO}
+      
+      # PagerDuty
+      PAGERDUTY_ROUTING_KEY: ${PAGERDUTY_ROUTING_KEY}
+    volumes:
+      - alertmanager_data:/alertmanager
+      - ../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - monitoring-network
+    external_links:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Node Exporter - Métriques système
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: traffeyere-node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring-network
+    pid: host
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+
+  # cAdvisor - Métriques containers
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: traffeyere-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /cgroup:/cgroup:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - monitoring-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Blackbox Exporter - Tests de connectivité
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: traffeyere-blackbox-exporter
+    restart: unless-stopped
+    volumes:
+      - ../monitoring/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    ports:
+      - "9115:9115"
+    networks:
+      - monitoring-network
+      - frontend
+      - backend
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+
+  # Loki - Agrégation de logs
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: traffeyere-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - loki_data:/loki
+      - ../monitoring/loki/loki.yml:/etc/loki/loki.yml:ro
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # Promtail - Collecte de logs
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: traffeyere-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail.yml
+    volumes:
+      - ../monitoring/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - backend_logs:/logs/backend:ro
+      - edge_ai_logs:/logs/edge-ai:ro
+      - frontend_logs:/logs/frontend:ro
+      - grafana_logs:/logs/grafana:ro
+    networks:
+      - monitoring-network
+    external_links:
+      - loki
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.1'
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+volumes:
+  prometheus_data:
+    driver: local
+  prometheus_config:
+    driver: local
+  grafana_data:
+    driver: local
+  grafana_logs:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+  # Volumes externes pour logs
+  backend_logs:
+    external: true
+  edge_ai_logs:
+    external: true
+  frontend_logs:
+    external: true
+
+networks:
+  monitoring-network:
+    name: traffeyere-monitoring
+    external: true
+  backend:
+    name: traffeyere-backend
+    external: true
+  frontend:
+    name: traffeyere-frontend
+    external: true

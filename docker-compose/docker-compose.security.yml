@@ -1,0 +1,421 @@
+version: '3.8'
+
+# ============================================================================
+# SECURITY LAYER - Station Traffeyère IoT/AI Platform
+# SIEM, SOC Dashboard, Sécurité et Conformité
+# ============================================================================
+
+services:
+  # Elasticsearch pour SIEM
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: traffeyere-elasticsearch
+    restart: unless-stopped
+    environment:
+      # Configuration cluster
+      node.name: traffeyere-siem
+      cluster.name: traffeyere-security-cluster
+      discovery.type: single-node
+      
+      # Sécurité
+      xpack.security.enabled: true
+      xpack.security.enrollment.enabled: false
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      
+      # Performance
+      ES_JAVA_OPTS: "-Xmx2g -Xms2g"
+      bootstrap.memory_lock: true
+      
+      # Configuration réseau
+      network.host: 0.0.0.0
+      http.port: 9200
+      
+      # Logging
+      logger.level: INFO
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - elasticsearch_config:/usr/share/elasticsearch/config
+      - elasticsearch_logs:/usr/share/elasticsearch/logs
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - security-network
+      - monitoring-network
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -u elastic:${ELASTIC_PASSWORD} -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '1.5'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+
+  # Kibana pour interface SIEM
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: traffeyere-kibana
+    restart: unless-stopped
+    environment:
+      # Configuration Elasticsearch
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD}
+      
+      # Configuration serveur
+      SERVER_NAME: traffeyere-kibana
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 5601
+      
+      # Sécurité
+      XPACK_SECURITY_ENABLED: true
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY}
+      
+      # Monitoring
+      XPACK_MONITORING_ENABLED: true
+      
+      # Performance
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      
+      # Logging
+      LOGGING_LEVEL: info
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+      - kibana_config:/usr/share/kibana/config
+    ports:
+      - "5601:5601"
+    networks:
+      - security-network
+      - frontend
+      - monitoring-network
+    external_links:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # SOC Dashboard personnalisé
+  soc-dashboard:
+    build:
+      context: ..
+      dockerfile: ./interfaces/soc-dashboard/Dockerfile
+    container_name: traffeyere-soc-dashboard
+    restart: unless-stopped
+    environment:
+      # Configuration SOC
+      SOC_MODE: ${SOC_MODE:-production}
+      THREAT_INTEL_ENABLED: ${THREAT_INTEL_ENABLED:-true}
+      INCIDENT_RESPONSE_ENABLED: ${INCIDENT_RESPONSE_ENABLED:-true}
+      
+      # Base de données SQLite locale
+      SOC_DATABASE_PATH: /app/data/soc_database.db
+      THREAT_INTEL_DATABASE_PATH: /app/data/threat_intelligence.db
+      
+      # Configuration API
+      API_HOST: 0.0.0.0
+      API_PORT: 3001
+      API_DEBUG: ${API_DEBUG:-false}
+      
+      # Intégrations
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: elastic
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD}
+      
+      # Backend Platform
+      BACKEND_API_URL: http://backend:8000
+      BACKEND_API_KEY: ${BACKEND_API_KEY}
+      
+      # MQTT pour événements temps réel
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_SOC_USERNAME:-soc_monitor}
+      MQTT_PASSWORD: ${MQTT_SOC_PASSWORD}
+      MQTT_TOPICS: traffeyere/alerts,traffeyere/security,traffeyere/incidents
+      
+      # Redis pour cache SOC
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/6
+      CACHE_TTL: ${SOC_CACHE_TTL:-300}
+      
+      # Threat Intelligence
+      THREAT_INTEL_FEEDS: ${THREAT_INTEL_FEEDS:-abuse.ch,malware_domain_list,phishtank}
+      THREAT_INTEL_UPDATE_INTERVAL: ${THREAT_INTEL_UPDATE_INTERVAL:-3600}
+      
+      # Alerting
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL}
+      SLACK_WEBHOOK_SECURITY: ${SLACK_WEBHOOK_SECURITY}
+      TEAMS_WEBHOOK_SECURITY: ${TEAMS_WEBHOOK_SECURITY}
+      
+      # SOAR Integration
+      SOAR_ENABLED: ${SOAR_ENABLED:-true}
+      SOAR_PLAYBOOKS_PATH: /app/playbooks
+      
+      # Forensics
+      FORENSICS_ENABLED: ${FORENSICS_ENABLED:-true}
+      EVIDENCE_STORAGE_PATH: /app/evidence
+      
+      # Compliance
+      COMPLIANCE_FRAMEWORKS: ${COMPLIANCE_FRAMEWORKS:-RGPD,ISO27001,ANSSI}
+      AUDIT_LOGGING: ${AUDIT_LOGGING:-true}
+      
+      # Performance
+      WORKER_THREADS: ${SOC_WORKER_THREADS:-4}
+      MAX_CONCURRENT_INCIDENTS: ${MAX_CONCURRENT_INCIDENTS:-100}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+    volumes:
+      - soc_data:/app/data
+      - soc_logs:/app/logs
+      - soc_evidence:/app/evidence
+      - soc_playbooks:/app/playbooks
+      - soc_config:/app/config
+    ports:
+      - "3001:3001"
+    networks:
+      - security-network
+      - backend
+      - iot_network
+      - frontend
+      - monitoring-network
+    external_links:
+      - elasticsearch
+      - redis
+      - mosquitto
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # HashiCorp Vault pour gestion des secrets
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: traffeyere-vault
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_LOCAL_CONFIG: |
+        {
+          "storage": {
+            "file": {
+              "path": "/vault/data"
+            }
+          },
+          "listener": {
+            "tcp": {
+              "address": "0.0.0.0:8200",
+              "tls_disable": true
+            }
+          },
+          "ui": true,
+          "api_addr": "http://0.0.0.0:8200",
+          "cluster_addr": "http://0.0.0.0:8201"
+        }
+    volumes:
+      - vault_data:/vault/data
+      - vault_logs:/vault/logs
+      - vault_config:/vault/config
+    ports:
+      - "8200:8200"
+    networks:
+      - security-network
+      - backend
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # Wazuh Manager pour détection d'intrusion
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.7.0
+    container_name: traffeyere-wazuh-manager
+    restart: unless-stopped
+    environment:
+      - WAZUH_MANAGER_ADMIN_USER=${WAZUH_ADMIN_USER:-admin}
+      - WAZUH_MANAGER_ADMIN_PASSWORD=${WAZUH_ADMIN_PASSWORD}
+    volumes:
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+      - filebeat_etc:/etc/filebeat
+      - filebeat_var:/var/lib/filebeat
+    ports:
+      - "1514:1514"
+      - "1515:1515"
+      - "514:514/udp"
+      - "55000:55000"
+    networks:
+      - security-network
+      - monitoring-network
+    healthcheck:
+      test: ["CMD-SHELL", "/var/ossec/bin/wazuh-control status | grep -q 'wazuh-manager is running'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # NGINX Security Proxy avec WAF
+  nginx-security:
+    image: nginx:1.25-alpine
+    container_name: traffeyere-nginx-security
+    restart: unless-stopped
+    volumes:
+      - ../security/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../security/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ../security/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    ports:
+      - "443:443"
+      - "8443:8443"
+    networks:
+      - security-network
+      - frontend
+      - backend
+    external_links:
+      - backend
+      - frontend
+      - grafana
+      - kibana
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  elasticsearch_config:
+    driver: local
+  elasticsearch_logs:
+    driver: local
+  kibana_data:
+    driver: local
+  kibana_config:
+    driver: local
+  soc_data:
+    driver: local
+  soc_logs:
+    driver: local
+  soc_evidence:
+    driver: local
+  soc_playbooks:
+    driver: local
+  soc_config:
+    driver: local
+  vault_data:
+    driver: local
+  vault_logs:
+    driver: local
+  vault_config:
+    driver: local
+  wazuh_api_configuration:
+    driver: local
+  wazuh_etc:
+    driver: local
+  wazuh_logs:
+    driver: local
+  wazuh_queue:
+    driver: local
+  wazuh_var_multigroups:
+    driver: local
+  wazuh_integrations:
+    driver: local
+  wazuh_active_response:
+    driver: local
+  wazuh_agentless:
+    driver: local
+  wazuh_wodles:
+    driver: local
+  filebeat_etc:
+    driver: local
+  filebeat_var:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  security-network:
+    name: traffeyere-security
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1500
+  backend:
+    name: traffeyere-backend
+    external: true
+  frontend:
+    name: traffeyere-frontend
+    external: true
+  iot_network:
+    name: traffeyere-iot
+    external: true
+  monitoring-network:
+    name: traffeyere-monitoring
+    external: true

@@ -1,0 +1,302 @@
+version: '3.8'
+
+# ============================================================================
+# APPLICATION LAYER - Station Traffeyère IoT/AI Platform
+# Backend FastAPI, Frontend React, Edge AI Engine
+# ============================================================================
+
+services:
+  # Backend FastAPI principal
+  backend:
+    build:
+      context: ..
+      dockerfile: ./services/backend/Dockerfile
+      args:
+        - ENVIRONMENT=production
+    container_name: traffeyere-backend
+    restart: unless-stopped
+    environment:
+      # Configuration projet
+      PROJECT_NAME: "Station Traffeyère IoT/AI Platform"
+      RNCP_CODE: "39394"
+      ENVIRONMENT: production
+      
+      # Connexions base de données
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-station_traffeyere}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      
+      # InfluxDB pour métriques IoT
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_ADMIN_TOKEN}
+      INFLUX_ORG: ${INFLUX_ORG:-traffeyere}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-iot_sensors}
+      
+      # MinIO S3 Storage
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET:-station-data}
+      
+      # Sécurité
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 60
+      
+      # MQTT Configuration
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_station}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      
+      # Station Configuration
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
+      STATION_NAME: ${STATION_NAME:-Station Traffeyère}
+      STATION_LOCATION: ${STATION_LOCATION:-Strasbourg, France}
+      
+      # AI Configuration
+      ANOMALY_THRESHOLD: ${ANOMALY_THRESHOLD:-0.85}
+      AI_INFERENCE_TIMEOUT: ${AI_INFERENCE_TIMEOUT:-280}
+      EDGE_AI_ENDPOINT: http://edge-ai-engine:8001
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+    volumes:
+      - backend_logs:/app/logs
+      - backend_models:/app/models
+      - backend_cache:/app/cache
+    ports:
+      - "8000:8000"
+    networks:
+      - backend
+      - frontend
+      - iot_network
+      - monitoring-network
+    external_links:
+      - postgres
+      - redis
+      - influxdb
+      - minio
+      - mosquitto
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Edge AI Engine pour inférence temps réel
+  edge-ai-engine:
+    build:
+      context: ..
+      dockerfile: ./core/edge-ai-engine/Dockerfile
+      args:
+        - ENVIRONMENT=production
+    container_name: traffeyere-edge-ai
+    restart: unless-stopped
+    environment:
+      # Configuration IA
+      AI_MODEL_PATH: /app/models
+      AI_CACHE_PATH: /app/cache
+      INFERENCE_TIMEOUT: ${AI_INFERENCE_TIMEOUT:-280}
+      BATCH_SIZE: ${AI_BATCH_SIZE:-32}
+      
+      # SHAP XAI Configuration
+      SHAP_ENABLED: ${SHAP_ENABLED:-true}
+      SHAP_EXPLAINER_TYPE: ${SHAP_EXPLAINER_TYPE:-TreeExplainer}
+      XAI_CACHE_SIZE: ${XAI_CACHE_SIZE:-1000}
+      
+      # Connexions
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_station}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      
+      # Backend API
+      BACKEND_API_URL: http://backend:8000
+      API_KEY: ${BACKEND_API_KEY}
+      
+      # Configuration capteurs
+      SENSOR_COUNT: ${SENSOR_COUNT:-127}
+      ANOMALY_DETECTION_ENABLED: ${ANOMALY_DETECTION_ENABLED:-true}
+      ANOMALY_THRESHOLD: ${ANOMALY_THRESHOLD:-0.85}
+      
+      # Performance
+      WORKER_THREADS: ${AI_WORKER_THREADS:-4}
+      MAX_QUEUE_SIZE: ${AI_MAX_QUEUE_SIZE:-1000}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - edge_ai_models:/app/models
+      - edge_ai_cache:/app/cache
+      - edge_ai_logs:/app/logs
+    ports:
+      - "8001:8001"
+    networks:
+      - backend
+      - iot_network
+      - monitoring-network
+    external_links:
+      - redis
+      - mosquitto
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '2.0'
+        reservations:
+          memory: 1.5G
+          cpus: '1.0'
+
+  # Frontend React principal
+  frontend:
+    build:
+      context: ..
+      dockerfile: ./services/frontend/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+        - VITE_WS_URL=ws://localhost:8000/ws
+        - VITE_GRAFANA_URL=http://localhost:3000
+        - VITE_XAI_URL=http://localhost:8092
+        - VITE_ENVIRONMENT=production
+        - VITE_STATION_ID=${STATION_ID:-TRAFFEYERE_001}
+        - VITE_MQTT_WS_URL=ws://localhost:8083/mqtt
+    container_name: traffeyere-frontend
+    restart: unless-stopped
+    volumes:
+      - frontend_assets:/var/www/html/assets
+      - frontend_logs:/var/log/nginx
+    ports:
+      - "3080:80"
+    networks:
+      - frontend
+      - monitoring-network
+    external_links:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # XAI Dashboard pour IA explicable
+  xai-dashboard:
+    build:
+      context: ..
+      dockerfile: ./interfaces/voice-assistant-xia/Dockerfile.backend
+    container_name: traffeyere-xai-dashboard
+    restart: unless-stopped
+    environment:
+      # Configuration XAI
+      XAI_ENGINE_URL: http://edge-ai-engine:8001
+      BACKEND_API_URL: http://backend:8000
+      
+      # SHAP Configuration
+      SHAP_CACHE_SIZE: ${XAI_CACHE_SIZE:-1000}
+      EXPLANATION_TIMEOUT: ${XAI_EXPLANATION_TIMEOUT:-30}
+      
+      # Voice Assistant
+      VOICE_ASSISTANT_ENABLED: ${VOICE_ASSISTANT_ENABLED:-true}
+      TTS_ENABLED: ${TTS_ENABLED:-true}
+      STT_ENABLED: ${STT_ENABLED:-true}
+      
+      # Redis pour cache XAI
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - xai_models:/app/models
+      - xai_cache:/app/cache
+      - xai_logs:/app/logs
+    ports:
+      - "8092:8092"
+    networks:
+      - backend
+      - frontend
+      - monitoring-network
+    external_links:
+      - redis
+      - backend
+      - edge-ai-engine
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8092/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+volumes:
+  backend_logs:
+    driver: local
+  backend_models:
+    driver: local
+  backend_cache:
+    driver: local
+  edge_ai_models:
+    driver: local
+  edge_ai_cache:
+    driver: local
+  edge_ai_logs:
+    driver: local
+  frontend_assets:
+    driver: local
+  frontend_logs:
+    driver: local
+  xai_models:
+    driver: local
+  xai_cache:
+    driver: local
+  xai_logs:
+    driver: local
+
+networks:
+  backend:
+    name: traffeyere-backend
+    external: true
+  frontend:
+    name: traffeyere-frontend
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1500
+  iot_network:
+    name: traffeyere-iot
+    external: true
+  monitoring-network:
+    name: traffeyere-monitoring
+    external: true

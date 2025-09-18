@@ -1,0 +1,313 @@
+version: '3.8'
+
+# ============================================================================
+# IOT LAYER - Station Traffeyère IoT/AI Platform
+# Générateur de données IoT, simulateurs capteurs
+# ============================================================================
+
+services:
+  # Générateur de données IoT principal
+  iot-data-generator:
+    build:
+      context: ..
+      dockerfile: ./core/iot-data-generator/Dockerfile
+    container_name: traffeyere-iot-generator
+    restart: unless-stopped
+    environment:
+      # Configuration Station
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}
+      STATION_NAME: ${STATION_NAME:-Station Traffeyère}
+      STATION_LOCATION: ${STATION_LOCATION:-Strasbourg, France}
+      STATION_COORDINATES: ${STATION_COORDINATES:-48.5734,7.7521}
+      
+      # Configuration Capteurs
+      SENSOR_COUNT: ${SENSOR_COUNT:-127}
+      SENSOR_INTERVAL: ${SENSOR_INTERVAL:-5}
+      SENSOR_BATCH_SIZE: ${SENSOR_BATCH_SIZE:-10}
+      
+      # Simulation Anomalies
+      ANOMALY_INJECTION_ENABLED: ${ANOMALY_INJECTION_ENABLED:-true}
+      ANOMALY_RATE: ${ANOMALY_RATE:-0.05}
+      ANOMALY_SEVERITY: ${ANOMALY_SEVERITY:-medium}
+      
+      # MQTT Configuration
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_station}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      MQTT_CLIENT_ID: ${MQTT_CLIENT_ID:-iot_generator_primary}
+      MQTT_QOS: ${MQTT_QOS:-1}
+      MQTT_RETAIN: ${MQTT_RETAIN:-false}
+      
+      # Topics MQTT
+      MQTT_TOPIC_PREFIX: ${MQTT_TOPIC_PREFIX:-traffeyere/station}
+      MQTT_TOPIC_SENSORS: ${MQTT_TOPIC_SENSORS:-sensors}
+      MQTT_TOPIC_ALERTS: ${MQTT_TOPIC_ALERTS:-alerts}
+      MQTT_TOPIC_STATUS: ${MQTT_TOPIC_STATUS:-status}
+      
+      # Configuration Données
+      DATA_FORMAT: ${DATA_FORMAT:-json}
+      TIMESTAMP_FORMAT: ${TIMESTAMP_FORMAT:-iso8601}
+      INCLUDE_METADATA: ${INCLUDE_METADATA:-true}
+      
+      # Types de capteurs
+      SENSOR_TYPES: ${SENSOR_TYPES:-temperature,humidity,pressure,ph,turbidity,conductivity,dissolved_oxygen,flow_rate,level,chlorine,nitrates,ammonia}
+      
+      # Plages de valeurs
+      TEMP_MIN: ${TEMP_MIN:-5.0}
+      TEMP_MAX: ${TEMP_MAX:-35.0}
+      HUMIDITY_MIN: ${HUMIDITY_MIN:-30.0}
+      HUMIDITY_MAX: ${HUMIDITY_MAX:-95.0}
+      PH_MIN: ${PH_MIN:-6.5}
+      PH_MAX: ${PH_MAX:-8.5}
+      PRESSURE_MIN: ${PRESSURE_MIN:-980.0}
+      PRESSURE_MAX: ${PRESSURE_MAX:-1050.0}
+      
+      # Performance
+      BATCH_PROCESSING: ${BATCH_PROCESSING:-true}
+      ASYNC_PUBLISHING: ${ASYNC_PUBLISHING:-true}
+      WORKER_THREADS: ${IOT_WORKER_THREADS:-4}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      
+      # Redis pour cache
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/4
+      CACHE_TTL: ${CACHE_TTL:-300}
+    volumes:
+      - iot_data:/app/data
+      - iot_logs:/app/logs
+      - iot_config:/app/config
+    networks:
+      - iot_network
+      - backend
+      - monitoring-network
+    external_links:
+      - mosquitto
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Simulateur Station Sécurisé
+  secure-station-simulator:
+    build:
+      context: ..
+      dockerfile: ./core/iot-data-generator/Dockerfile
+      target: simulator
+    container_name: traffeyere-secure-simulator
+    restart: unless-stopped
+    command: ["python", "secure_station_simulator.py"]
+    environment:
+      # Configuration sécurisée
+      SECURITY_MODE: ${SECURITY_MODE:-high}
+      ENCRYPTION_ENABLED: ${ENCRYPTION_ENABLED:-true}
+      TLS_ENABLED: ${TLS_ENABLED:-true}
+      
+      # Authentification
+      DEVICE_CERTIFICATE_PATH: /app/certs/device.crt
+      DEVICE_KEY_PATH: /app/certs/device.key
+      CA_CERTIFICATE_PATH: /app/certs/ca.crt
+      
+      # Station Configuration
+      STATION_ID: ${STATION_ID:-TRAFFEYERE_001}_SECURE
+      DEVICE_TYPE: ${DEVICE_TYPE:-secure_sensor_array}
+      FIRMWARE_VERSION: ${FIRMWARE_VERSION:-1.2.3}
+      
+      # MQTT Sécurisé
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 8883
+      MQTT_PROTOCOL: MQTTv5
+      MQTT_TRANSPORT: tcp
+      MQTT_USERNAME: ${MQTT_SECURE_USERNAME:-secure_station}
+      MQTT_PASSWORD: ${MQTT_SECURE_PASSWORD}
+      
+      # Chiffrement
+      PAYLOAD_ENCRYPTION: ${PAYLOAD_ENCRYPTION:-AES256}
+      KEY_ROTATION_INTERVAL: ${KEY_ROTATION_INTERVAL:-3600}
+      
+      # Simulation avancée
+      REALISTIC_NOISE: ${REALISTIC_NOISE:-true}
+      WEATHER_CORRELATION: ${WEATHER_CORRELATION:-true}
+      SEASONAL_VARIATION: ${SEASONAL_VARIATION:-true}
+      
+      # Redis pour synchronisation
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
+      
+      # Logging sécurisé
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AUDIT_LOGGING: ${AUDIT_LOGGING:-true}
+    volumes:
+      - secure_simulator_data:/app/data
+      - secure_simulator_logs:/app/logs
+      - simulator_certs:/app/certs:ro
+    networks:
+      - iot_network
+      - monitoring-network
+    external_links:
+      - mosquitto
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Simulateur Legacy pour tests d'intégration
+  legacy-system-simulator:
+    build:
+      context: ..
+      dockerfile: ./rncp-weeks/week-09-iot-ecosystem/Dockerfile.legacy
+    container_name: traffeyere-legacy-simulator
+    restart: unless-stopped
+    environment:
+      # Simulation Legacy
+      LEGACY_PROTOCOL: ${LEGACY_PROTOCOL:-modbus}
+      LEGACY_PORT: ${LEGACY_PORT:-502}
+      LEGACY_BAUDRATE: ${LEGACY_BAUDRATE:-9600}
+      
+      # Configuration Gateway
+      GATEWAY_MODE: ${GATEWAY_MODE:-bridge}
+      MQTT_BRIDGE_ENABLED: ${MQTT_BRIDGE_ENABLED:-true}
+      
+      # Données legacy
+      LEGACY_DATA_FORMAT: ${LEGACY_DATA_FORMAT:-binary}
+      CONVERSION_ENABLED: ${CONVERSION_ENABLED:-true}
+      
+      # MQTT Bridge
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_station}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      MQTT_TOPIC_PREFIX: ${MQTT_TOPIC_PREFIX:-traffeyere/legacy}
+      
+      # Performance
+      POLLING_INTERVAL: ${LEGACY_POLLING_INTERVAL:-10}
+      BATCH_SIZE: ${LEGACY_BATCH_SIZE:-50}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - legacy_data:/app/data
+      - legacy_logs:/app/logs
+    ports:
+      - "5020:502"
+    networks:
+      - iot_network
+      - monitoring-network
+    external_links:
+      - mosquitto
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "502"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+
+  # Test Simulator pour développement
+  test-simulator:
+    build:
+      context: ..
+      dockerfile: ./core/iot-data-generator/Dockerfile
+      target: test
+    container_name: traffeyere-test-simulator
+    restart: "no"
+    profiles: ["test", "dev"]
+    environment:
+      # Configuration Test
+      TEST_MODE: ${TEST_MODE:-unit}
+      TEST_DURATION: ${TEST_DURATION:-300}
+      TEST_SENSORS: ${TEST_SENSORS:-10}
+      
+      # Simulation Test
+      RAPID_TESTING: ${RAPID_TESTING:-true}
+      TEST_SCENARIOS: ${TEST_SCENARIOS:-normal,anomaly,offline,reconnect}
+      
+      # MQTT Test
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_station}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      MQTT_TOPIC_PREFIX: test/traffeyere
+      
+      # Output
+      TEST_RESULTS_PATH: /app/results
+      JUNIT_OUTPUT: ${JUNIT_OUTPUT:-true}
+      
+      # Redis Test
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/9
+    volumes:
+      - test_results:/app/results
+      - test_logs:/app/logs
+    networks:
+      - iot_network
+    external_links:
+      - mosquitto
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+volumes:
+  iot_data:
+    driver: local
+  iot_logs:
+    driver: local
+  iot_config:
+    driver: local
+  secure_simulator_data:
+    driver: local
+  secure_simulator_logs:
+    driver: local
+  simulator_certs:
+    driver: local
+  legacy_data:
+    driver: local
+  legacy_logs:
+    driver: local
+  test_results:
+    driver: local
+  test_logs:
+    driver: local
+
+networks:
+  iot_network:
+    name: traffeyere-iot
+    external: true
+  backend:
+    name: traffeyere-backend
+    external: true
+  monitoring-network:
+    name: traffeyere-monitoring
+    external: true
